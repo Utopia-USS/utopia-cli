@@ -1,0 +1,33 @@
+name: utopia_template
+description: A Flutter project template based on utopia_arch
+version: 0.1.0
+
+vars:
+  project_name:
+    type: string
+    description: The name of the project (must not contain '-')
+    prompt: What is the project name?
+    default: my_app
+
+  org_name:
+    type: string
+    description: The organization name in reverse domain notation
+    prompt: What is the organization name? (e.g., io.utopiasoft)
+    default: io.utopiasoft
+
+  package_name:
+    type: string
+    description: The package name (same as project_name)
+    prompt: What is the package name?
+    default: my_app
+
+  platforms:
+    type: string
+    description: Platforms to support (comma-separated)
+    prompt: Which platforms? (android,ios)
+    default: android,ios
+
+  dart_package_name:
+    type: string
+    description: Dart package name (same as package_name, for backward compatibility)
+    default: my_app

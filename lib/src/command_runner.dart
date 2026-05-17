@@ -4,11 +4,11 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
-import 'package:meta/meta.dart';
 import 'package:pub_updater/pub_updater.dart';
 
 import 'commands/add/add_command.dart';
 import 'commands/create/create_command.dart';
+import 'commands/mcp/mcp_command.dart';
 import 'commands/stub_commands.dart';
 import 'commands/update_command.dart';
 import 'strings.dart' as strings;
@@ -22,8 +22,10 @@ class UtopiaCommandRunner extends CommandRunner<int> {
   UtopiaCommandRunner({
     Logger? logger,
     PubUpdater? pubUpdater,
+    bool disableUpdateCheck = false,
   })  : _logger = logger ?? Logger(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
+        checkForUpdates = !disableUpdateCheck,
         super('utopia', '🦄 Utopia CLI — scaffold Flutter apps the Utopia way.') {
     argParser
       ..addFlag(
@@ -41,6 +43,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
     addCommand(CreateCommand(logger: _logger));
     addCommand(AddCommand(logger: _logger));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
+    addCommand(McpCommand());
     // `migrate bloc` is a planned Phase-2 command — visible in --help.
     addCommand(MigrateCommand(logger: _logger));
   }
@@ -48,9 +51,10 @@ class UtopiaCommandRunner extends CommandRunner<int> {
   final Logger _logger;
   final PubUpdater _pubUpdater;
 
-  /// Test seam — override to skip the pub.dev update check.
-  @visibleForTesting
-  bool checkForUpdates = true;
+  /// Whether to check pub.dev for a newer release after each command.
+  /// Disabled by tests and by embedders (e.g. the MCP server) that don't
+  /// want post-run network calls.
+  bool checkForUpdates;
 
   @override
   Future<int> run(Iterable<String> args) async {

@@ -36,9 +36,10 @@ project and try `/utopia-hooks` to scaffold your next screen.
 |---|---|---|
 | `utopia create flutter_app <name>` | ✓ | Scaffold a Utopia Flutter app. |
 | `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
+| `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
+| `utopia mcp` | ✓ | Boot an MCP server exposing the CLI as tools for AI agents. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
-| `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
 | `utopia add state <name>` | planned | Scaffold a global state hook. |
 | `utopia migrate bloc` | planned | Migrate `flutter_bloc` code to `utopia_hooks`. |
 
@@ -70,6 +71,38 @@ After scaffolding, the CLI prints a snippet you can paste into
 The brick is vendored from
 [`Utopia-USS/utopia-mason`](https://github.com/Utopia-USS/utopia-mason)'s
 `screen` brick and shipped in-repo for atomic versioning.
+
+### `utopia mcp` — MCP server for AI agents
+
+Exposes the CLI surface as a [Model Context Protocol](https://modelcontextprotocol.io)
+server over stdio. Agents (Claude Code, Cursor, etc.) can scaffold
+projects and screens via JSON-RPC instead of shelling out.
+
+```
+utopia mcp
+```
+
+Tools registered:
+
+| Tool | Wraps |
+|---|---|
+| `create_flutter_app` | `utopia create flutter_app <name>` |
+| `create_flutter_package` | `utopia create flutter_package <name>` |
+| `add_screen` | `utopia add screen <name>` |
+
+Example: in your Claude Code config, register the server as:
+
+```json
+{
+  "mcpServers": {
+    "utopia": { "command": "utopia", "args": ["mcp"] }
+  }
+}
+```
+
+Each MCP tool simply parses arguments back into CLI flags and runs the
+real command — no second source of truth. Marked experimental until
+real-world client coverage lands.
 
 ### `utopia create flutter_app`
 

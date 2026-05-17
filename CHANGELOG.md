@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0-dev.2] - 2026-05-17
+
+### Added
+
+- `utopia add screen <name>` — scaffolds a Screen/State/View triad at
+  `lib/screen/<name>/`. Brick vendored from
+  [`Utopia-USS/utopia-mason`](https://github.com/Utopia-USS/utopia-mason)
+  as `bricks/screen/`. Flags: `--route` (default `/<name>`),
+  `--output-directory` (default `lib/screen`).
+- Post-generation hint printed with the exact `import` and `routes`
+  snippet to paste into `lib/app/app_routing.dart`.
+
+### Changed
+
+- `add` command wiring refactored — `AddCommand` is now a real command
+  with `AddScreenCommand` subcommand; `add state` remains a stub via a
+  shared `StubSubcommand` helper.
+
 ## [0.2.0-dev.1] - 2026-05-17
 
 ### Breaking

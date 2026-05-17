@@ -7,6 +7,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:meta/meta.dart';
 import 'package:pub_updater/pub_updater.dart';
 
+import 'commands/add/add_command.dart';
 import 'commands/create/create_command.dart';
 import 'commands/stub_commands.dart';
 import 'commands/update_command.dart';
@@ -38,9 +39,9 @@ class UtopiaCommandRunner extends CommandRunner<int> {
       );
 
     addCommand(CreateCommand(logger: _logger));
-    addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
-    // Phase-2 stub commands — show up in --help, exit with unavailable.
     addCommand(AddCommand(logger: _logger));
+    addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
+    // `migrate bloc` is a planned Phase-2 command — visible in --help.
     addCommand(MigrateCommand(logger: _logger));
   }
 

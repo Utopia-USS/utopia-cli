@@ -14,8 +14,7 @@ class AddCommand extends Command<int> {
   String get name => 'add';
 
   @override
-  String get description =>
-      'Add a Screen or other building block to an existing project.';
+  String get description => 'Add a Screen or other building block to an existing project.';
 
   @override
   String get invocation => 'utopia add <subcommand> <name>';

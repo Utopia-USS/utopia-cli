@@ -83,8 +83,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
 
     final exitCode = await super.runCommand(topLevelResults);
 
-    if (checkForUpdates &&
-        topLevelResults.command?.name != UpdateCommand.commandName) {
+    if (checkForUpdates && topLevelResults.command?.name != UpdateCommand.commandName) {
       await _checkForUpdates();
     }
 
@@ -93,8 +92,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
 
   Future<void> _checkForUpdates() async {
     try {
-      final latest = await _pubUpdater.getLatestVersion(packageName)
-          .timeout(const Duration(seconds: 2));
+      final latest = await _pubUpdater.getLatestVersion(packageName).timeout(const Duration(seconds: 2));
       if (latest != packageVersion) {
         _logger
           ..info('')

@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: analyze + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - run: dart pub get
+
+      - name: Verify version.dart matches pubspec.yaml
+        run: |
+          dart run tool/sync_version.dart
+          if [ -n "$(git status --porcelain lib/src/version.dart)" ]; then
+            echo "::error::lib/src/version.dart is out of sync with pubspec.yaml."
+            echo "Run \`dart run tool/sync_version.dart\` and commit the result."
+            git diff lib/src/version.dart
+            exit 1
+          fi
+
+      # Skip bricks/ — files contain {{mustache}} placeholders that are
+      # not valid Dart and would error the formatter.
+      - run: dart format --output=none --set-exit-if-changed --line-length=120 bin lib test tool
+
+      - run: dart analyze --fatal-infos --fatal-warnings
+
+      - run: dart test --reporter=expanded
+
+  publish-dry-run:
+    name: pub publish --dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+
+      - run: dart pub publish --dry-run

@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0-dev.5] - 2026-05-17
+
+### Added
+
+- **CI workflow** (`.github/workflows/ci.yml`) — on every push and PR
+  runs `dart format` (strict), `dart analyze --fatal-infos`, `dart test`,
+  and `dart pub publish --dry-run`. Verifies `lib/src/version.dart` is
+  in sync with `pubspec.yaml`.
+
+### Fixed
+
+- **MCP `tools/list` returned empty** — tools are now registered in the
+  `UtopiaMcpServer` constructor (matches `dart_mcp` 0.5.1 example
+  pattern) instead of inside `initialize()`. Verified end-to-end:
+  `tools/list` returns all three tools with full schemas, and
+  `tools/call create_flutter_app` successfully scaffolds a project.
+
+### Changed
+
+- `process` package added to `dev_dependencies` (used by
+  `update_command_test.dart`) — silences the only outstanding
+  `dart pub publish --dry-run` warning.
+- `dart mcp` no longer flagged as experimental.
+
 ## [0.2.0-dev.4] - 2026-05-17
 
 ### Removed

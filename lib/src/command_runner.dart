@@ -8,6 +8,7 @@ import 'package:pub_updater/pub_updater.dart';
 
 import 'commands/add/add_command.dart';
 import 'commands/create/create_command.dart';
+import 'commands/init/init_command.dart';
 import 'commands/mcp/mcp_command.dart';
 import 'commands/update_command.dart';
 import 'strings.dart' as strings;
@@ -41,6 +42,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
 
     addCommand(CreateCommand(logger: _logger));
     addCommand(AddCommand(logger: _logger));
+    addCommand(InitCommand(logger: _logger));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
     addCommand(McpCommand());
   }

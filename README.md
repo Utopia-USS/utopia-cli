@@ -37,10 +37,10 @@ project and try `/utopia-hooks` to scaffold your next screen.
 | `utopia create flutter_app <name>` | ✓ | Scaffold a Utopia Flutter app. |
 | `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
 | `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
+| `utopia init skills` | ✓ | Register the skills marketplace in an existing project. |
 | `utopia mcp` | ✓ | Boot an MCP server exposing the CLI as tools for AI agents. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
-| `utopia init skills` | planned | Add `.claude/` skills config to a project that was created with `--no-skills` (or any existing Flutter project). |
 
 ### `utopia add screen`
 
@@ -67,6 +67,24 @@ After scaffolding, the CLI prints a snippet you can paste into
 The brick is vendored from
 [`Utopia-USS/utopia-mason`](https://github.com/Utopia-USS/utopia-mason)'s
 `screen` brick and shipped in-repo for atomic versioning.
+
+### `utopia init skills`
+
+Writes `.claude/settings.json` + `.claude/README.md` into the current
+directory, pre-registering the
+[`Utopia-USS/utopia-flutter-skills`](https://github.com/Utopia-USS/utopia-flutter-skills)
+marketplace and enabling the `utopia-hooks` plugin by default.
+
+Intended for projects created with `--no-skills`, or any existing
+Flutter project that wants to opt in.
+
+```
+utopia init skills [options]
+
+Options:
+  -d, --output-directory  Project root (default: ".")
+  -f, --force             Overwrite an existing .claude/settings.json
+```
 
 ### `utopia mcp` — MCP server for AI agents
 

@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0-dev.3] - 2026-05-17
+
+### Added
+
+- `utopia mcp` — boots a Model Context Protocol server over stdio,
+  exposing the CLI surface as MCP tools for AI agents (Claude Code,
+  Cursor, etc.). Tools registered:
+  - `create_flutter_app(name, org?, platforms?, output_directory?, application_id?, description?, skills?, pub_get?, git?)`
+  - `create_flutter_package(name, description?, output_directory?, skills?, pub_get?, git?)`
+  - `add_screen(name, route?, output_directory?)`
+- Each tool parses MCP arguments back into CLI flags and runs
+  `UtopiaCommandRunner` — no second source of truth.
+- Tests for `McpCommand` registration and factory injection.
+
+### Changed
+
+- `UtopiaCommandRunner` exposes a `disableUpdateCheck` constructor flag
+  so embedders (e.g. the MCP server) can suppress pub.dev probing.
+
+### Removed
+
+- Legacy MVP docs: `SETUP.md`, `PUBLISHING.md`, `UPDATE_TEMPLATE.md`,
+  and the `scripts/` directory. Content consolidated into
+  [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## [0.2.0-dev.2] - 2026-05-17
 
 ### Added
@@ -38,7 +63,7 @@ All notable changes to this project will be documented in this file.
 - `utopia create flutter_app <name>` — Flutter app scaffolder built on a
   shipped-in-repo Mason brick (`bricks/utopia_flutter_app/`).
 - `utopia create flutter_package <name>` — Flutter package scaffolder.
-- `utopia update` — self-update via `pub_updater`, matches `very_good update`.
+- `utopia update` — self-update via `pub_updater`.
 - `utopia --version` — prints CLI version (`utopia_cli vX.Y.Z`).
 - `utopia add screen|state` and `utopia migrate bloc` — Phase-2 stub
   commands that appear in `--help` and exit with "coming soon".

@@ -13,7 +13,7 @@ import 'package:yaml/yaml.dart';
 /// org: io.utopiasoft
 /// platforms: android,ios
 /// skills: true
-/// lints: utopia_lints   # or: very_good_analysis, flutter_lints
+/// lints: utopia_lints   # or: flutter_lints
 /// ```
 class UtopiaConfig {
   const UtopiaConfig({

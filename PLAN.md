@@ -21,7 +21,7 @@ first-class integration with the Utopia Claude Code skills marketplace.
 4. **Marketplace-ready presentation.** Pub.dev metadata complete, README that
    sells the workflow, in-CLI marketing touch points (welcome message, README
    footer credit) without being annoying.
-5. **Fix the obvious VGV gaps.** Bricks shipped in-repo (atomic versioning),
+5. **Pragmatic defaults.** Bricks shipped in-repo (atomic versioning),
    optional `.utopia.yaml` project config, no `$HOME` clutter.
 
 ## 2. Non-goals (this PR)
@@ -50,7 +50,7 @@ first-class integration with the Utopia Claude Code skills marketplace.
 
 Dart packages must use snake_case (pubspec spec), so we cannot rename the
 *package* itself to kebab. We compensate by renaming the executable and the
-repo. This matches `very_good_cli` → `very_good`.
+repo.
 
 ### 3.2 Code layout
 
@@ -107,24 +107,25 @@ utopia_cli/
 | `mason` | Brick generation | Already used; bump if needed |
 | `mason_logger` | Branded log output | New — replaces `print()` calls |
 | `path` | Path joining | Already used |
-| `pub_updater` | `utopia update` self-update | New, matches VGV |
+| `pub_updater` | `utopia update` self-update | New |
 | `yaml` | `.utopia.yaml` reader | New |
 | `meta` | `@visibleForTesting` | New |
+| `dart_mcp` | MCP server exposure | New (added in 0.2.0-dev.3) |
 | `test` (dev) | unit tests | Already used |
 
 Avoid: `cli_completion` (over-budget for MVP), `pana` (lint tooling, not
-needed at runtime), `dart_mcp` (out-of-scope for this PR).
+needed at runtime).
 
 ### 3.4 Architectural decisions and rationale
 
 | Decision | Rationale |
 |---|---|
-| `args`-based `CommandRunner` (matches VGV) | Standard, predictable for Dart CLI users; supports subcommands cleanly. |
-| Bricks shipped **in-repo** under `bricks/` | Fixes VGV's atomic-versioning gap (issue #360). Brick + CLI version always match. |
+| `args`-based `CommandRunner` | Standard, predictable for Dart CLI users; supports subcommands cleanly. |
+| Bricks shipped **in-repo** under `bricks/` | Atomic versioning — brick + CLI release together; no surprise version skew. |
 | Brick resolution via `Platform.script` + `package_config` fallback | Robust across `dart run`, `dart pub global activate`, and `dart compile exe`. Existing CLI's multi-strategy approach is preserved but refactored into `BrickLocator`. |
-| Replace `print()` with `mason_logger` (`Logger`) | Colored output, progress spinners, verbose mode — same UX VGV ships. |
+| Replace `print()` with `mason_logger` (`Logger`) | Colored output, progress spinners, verbose mode. |
 | Marketing strings centralized in `lib/src/strings.dart` | User can iterate copy without hunting through code. |
-| `.utopia.yaml` is optional, read once at startup | Fills in defaults for `--org`, `--lints`, future per-project settings. Closes VGV gap (#360). No file is written by the CLI to `$HOME` (closes VGV gap #706). |
+| `.utopia.yaml` is optional, read once at startup | Fills in defaults for `--org`, `--lints`, future per-project settings. No files are written by the CLI to bare `$HOME` (use `$XDG_CONFIG_HOME` if state ever needs to be persisted). |
 | `.claude/` generated, not symlinked | Project owns its config; users can edit per-project. |
 | Sample "counter" feature in generated app | Demonstrates Screen/State/View, gives a `flutter run`-ready experience. |
 | Keep `utopia_arch_cli` as deprecated alias for one minor | Documented upgrade path, zero churn for the 1 commit MVP. |
@@ -226,7 +227,7 @@ pointing at `utopia_lints`.
 
 ### 4.4 `utopia update` — **P1**
 
-Self-update via `pub_updater`. Matches `very_good update`.
+Self-update via `pub_updater`.
 
 ```
 utopia update
@@ -381,9 +382,9 @@ formatter:
 ```
 
 If `utopia_lints` is not resolvable at generation time (e.g., not yet
-published to pub.dev), the CLI falls back to `very_good_analysis` and
-prints a warning. Decided at brick-render time via a `lints_pack` var
-(default: `utopia_lints`, override via `--lints`).
+published to pub.dev), the CLI falls back to `flutter_lints` and prints
+a warning. Decided at brick-render time via a `lints_pack` var (default:
+`utopia_lints`, override via `--lints`).
 
 ---
 
@@ -534,7 +535,7 @@ utopia create flutter_app my_app --org io.utopiasoft
 
 ## 9. Testing strategy
 
-Per VGV's approach, but scoped for MVP:
+Scoped for MVP:
 
 ### 9.1 Unit tests (`test/`)
 
@@ -609,8 +610,7 @@ topics: [cli, flutter, scaffolding, utopia, hooks]
    it's not yet published, fallback path: `flutter_lints` (built-in) with
    a TODO in the generated `analysis_options.yaml`. Default in plan:
    `utopia_lints` because the existing brick already references it.
-4. **Brick name `utopia_flutter_app` vs `utopia_app`.** VGV uses
-   `very_good_core` as the brick name behind `flutter_app`. Recommendation:
+4. **Brick name `utopia_flutter_app` vs `utopia_app`.** Recommendation:
    keep `utopia_flutter_app` for clarity. Trivial to rename later.
 5. **Should `utopia create` default to `--no-skills=false` or prompt?** The
    plan defaults to **enabled** for marketing reasons. If we want a more

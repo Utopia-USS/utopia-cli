@@ -27,8 +27,12 @@ first-class integration with the Utopia Claude Code skills marketplace.
 ## 2. Non-goals (this PR)
 
 - Publishing to pub.dev — manual step after review.
-- Implementing `utopia migrate bloc`, `utopia add screen`, `utopia add state` —
-  scaffolded as planned subcommands only.
+- `utopia migrate bloc` and `utopia add state` — dropped from scope
+  during review. BLoC migration lives in the
+  `utopia-hooks-migrate-bloc` Claude Code skill (invoked via
+  `/utopia-hooks-migrate-bloc:migrate`). "State" scaffolding is too
+  context-dependent (global vs widget-local) to bake into a CLI brick;
+  `/utopia-hooks` in the skill handles it instead.
 - Custom CI for the CLI itself (skill repo has its own).
 - Marketing assets outside the CLI (blog, demo GIFs, social previews).
 - Renaming the GitHub repo from `utopia_cli` to `utopia-cli` — a separate
@@ -243,18 +247,22 @@ Behavior:
 Prints `utopia_cli vX.Y.Z`. Version sourced from `lib/src/version.dart` —
 generated at release time from `pubspec.yaml`.
 
-### 4.6 Planned for Phase 2 (NOT implemented in this PR)
+### 4.6 Roadmap
 
-These are sketched in code as stub `Command<int>` subclasses that print
-`"Coming soon — track Utopia-USS/utopia_cli#<issue> for progress"` and exit
-with `ExitCode.unavailable.code`. They appear in `utopia --help` so users
-can see the roadmap.
-
-| Command | Sketch | Phase-2 owner |
+| Command | Status | Notes |
 |---|---|---|
-| `utopia add screen <name>` | Generates a Screen/State/View triad under `lib/screen/<name>/` using the `utopia-mason` `screen` brick. | TBD |
-| `utopia add state <name>` | Generates a global state hook + `_providers.dart` entry. | TBD |
-| `utopia migrate bloc` | Thin wrapper that prints instructions to run `claude /utopia-hooks-migrate-bloc:migrate` and ensures the marketplace is registered. | TBD |
+| `utopia add screen <name>` | ✓ implemented | `bricks/screen/` vendored from `Utopia-USS/utopia-mason`. |
+| `utopia mcp` | ✓ implemented | MCP server over stdio. |
+| `utopia init skills` | planned | Writes `.claude/` into an existing project. |
+
+**Dropped from scope** during PR review:
+
+- `utopia migrate bloc` — handled by the `utopia-hooks-migrate-bloc`
+  Claude Code skill (`/utopia-hooks-migrate-bloc:migrate`); no CLI
+  surface needed.
+- `utopia add state` — "state" is overloaded (global vs widget-local)
+  and not a clean single-template problem; `/utopia-hooks` in the skill
+  handles it with context.
 
 ---
 
@@ -628,8 +636,6 @@ topics: [cli, flutter, scaffolding, utopia, hooks]
 ## 12. Out of scope (explicit)
 
 - Pub.dev publish (manual after review).
-- `utopia add screen`, `utopia add state`, `utopia migrate bloc`
-  implementations.
 - CI setup for the CLI repo (does not exist today).
 - Marketing assets (blog, demo GIF, social cards).
 - Localization of CLI output.

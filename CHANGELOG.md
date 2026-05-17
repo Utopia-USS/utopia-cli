@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0-dev.4] - 2026-05-17
+
+### Removed
+
+- `utopia migrate bloc` stub — out of scope for the CLI. BLoC migration
+  lives in the `utopia-hooks-migrate-bloc` Claude Code skill; invoke it
+  via `/utopia-hooks-migrate-bloc:migrate` after the skills marketplace
+  is registered (it is, in any project created by `utopia create`).
+- `utopia add state` stub — global vs widget-local state is not a
+  single-template problem and the value of scaffolding either is low.
+  Dropped from the roadmap.
+- `lib/src/commands/stub_commands.dart` and `strings_helper.dart` —
+  no longer needed.
+
+### Changed
+
+- `AddCommand` exposes only `add screen` now. Help and `invocation`
+  copy updated accordingly.
+
 ## [0.2.0-dev.3] - 2026-05-17
 
 ### Added

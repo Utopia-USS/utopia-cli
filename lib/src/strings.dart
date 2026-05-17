@@ -41,11 +41,6 @@ String createNextSteps({required String projectName, required bool skillsEnabled
   return lines.join('\n');
 }
 
-/// "Coming soon" message printed by Phase-2 stub commands.
-String comingSoon(String commandName) =>
-    'Coming soon — `utopia $commandName` is on the roadmap.\n'
-    'Track progress at $_cliRepoUrl/issues.';
-
 /// Update-available banner, shown by the command runner when a newer
 /// version is on pub.dev.
 String updateAvailable(String latestVersion) => '''

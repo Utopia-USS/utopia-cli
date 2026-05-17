@@ -9,7 +9,6 @@ import 'package:pub_updater/pub_updater.dart';
 import 'commands/add/add_command.dart';
 import 'commands/create/create_command.dart';
 import 'commands/mcp/mcp_command.dart';
-import 'commands/stub_commands.dart';
 import 'commands/update_command.dart';
 import 'strings.dart' as strings;
 import 'version.dart';
@@ -44,8 +43,6 @@ class UtopiaCommandRunner extends CommandRunner<int> {
     addCommand(AddCommand(logger: _logger));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
     addCommand(McpCommand());
-    // `migrate bloc` is a planned Phase-2 command — visible in --help.
-    addCommand(MigrateCommand(logger: _logger));
   }
 
   final Logger _logger;

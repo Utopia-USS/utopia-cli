@@ -40,11 +40,7 @@ project and try `/utopia-hooks` to scaffold your next screen.
 | `utopia mcp` | ✓ | Boot an MCP server exposing the CLI as tools for AI agents. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
-| `utopia add state <name>` | planned | Scaffold a global state hook. |
-| `utopia migrate bloc` | planned | Migrate `flutter_bloc` code to `utopia_hooks`. |
-
-Planned commands appear in `--help` but exit with a "coming soon" notice
-for now.
+| `utopia init skills` | planned | Add `.claude/` skills config to a project that was created with `--no-skills` (or any existing Flutter project). |
 
 ### `utopia add screen`
 

@@ -1,6 +1,6 @@
 name: utopia_cli
 description: A CLI for scaffolding Flutter projects built on utopia_arch and utopia_hooks, with Claude Code skills integration.
-version: 0.2.0-dev.3
+version: 0.2.0-dev.4
 homepage: https://github.com/Utopia-USS/utopia-cli
 repository: https://github.com/Utopia-USS/utopia-cli
 issue_tracker: https://github.com/Utopia-USS/utopia-cli/issues

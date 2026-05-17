@@ -40,18 +40,28 @@ task brief and serves as the PR description body.
 | `utopia create flutter_package <name>` | ✓ | Minimal package brick + `--no-skills`/`--no-pub-get`/`--no-git`. |
 | `utopia update` | ✓ | Self-update via `pub_updater`. |
 | `utopia add screen <name>` | ✓ | Real implementation backed by `bricks/screen/` (vendored from `Utopia-USS/utopia-mason`). Flags: `--route`, `--output-directory`. Prints route-registration snippet after generation. |
-| `utopia add state`, `utopia migrate bloc` stubs | ✓ | Appear in `--help`, exit with `ExitCode.unavailable`. |
+| `utopia mcp` | ✓ | MCP server over stdio exposing `create_flutter_app`, `create_flutter_package`, `add_screen`. Marked experimental until live-client verification. |
 | `.utopia.yaml` config loader | ✓ | `lib/src/config/utopia_config.dart`. Walks parents, reads `org`/`platforms`/`skills`/`lints`. NOTE: loaded but not yet plumbed into command defaults — flagged below. |
 
 ### Out of scope (deferred per task brief)
 
 - Publish to pub.dev (manual).
-- `utopia add state` real implementation.
-- `utopia migrate bloc` implementation.
 - Auto-injecting the new route into `lib/app/app_routing.dart` (CLI
   prints the snippet to copy instead — see "Limitations" below).
 - CI for the CLI repo (none existed; not part of MVP).
 - Marketing assets outside the CLI (blog, demo GIF).
+
+### Dropped from roadmap (intentional)
+
+- **`utopia migrate bloc`** — BLoC migration lives in the
+  `utopia-hooks-migrate-bloc` Claude Code skill. Any project created by
+  `utopia create` ships with the marketplace registered, so the user
+  runs `/utopia-hooks-migrate-bloc:migrate` directly. No CLI surface
+  needed.
+- **`utopia add state`** — "state" is overloaded (global state hook vs.
+  widget-local state) and the scaffolding value is low for either.
+  Better solved by `/utopia-hooks` in the skill, which can ask
+  contextually.
 
 ---
 
@@ -176,22 +186,16 @@ schema for marketplaces may differ in field names. If users hit
 
 ## 5. Suggested next steps (P2 backlog)
 
-1. **`utopia add screen <name>`** — wrap the existing `utopia-mason`
-   `screen` brick into a CLI subcommand. Trivial since the brick is
-   already published.
-2. **`utopia add state <name>`** — generate a `useXState()` hook +
-   `_providers.dart` entry. Pairs with the migration skill.
-3. **`utopia migrate bloc`** — thin wrapper that registers the
-   marketplace if missing and prints
-   `claude /utopia-hooks-migrate-bloc:migrate` as the next command.
-4. **Plumb `.utopia.yaml` defaults into the argParser.** Read config in
+1. **`utopia init skills`** — for projects created with `--no-skills`
+   (or any existing Flutter project) that later want the marketplace
+   pre-registered. Writes `.claude/settings.json` and `.claude/README.md`,
+   nothing else.
+2. **Plumb `.utopia.yaml` defaults into the argParser.** Read config in
    the runner, pass into each `CreateSubCommand` constructor.
-5. **`utopia init skills`** — for projects created with `--no-skills`
-   that later want to opt in.
-6. **CI pipeline** — at minimum `dart analyze` + `dart test` +
+3. **CI pipeline** — at minimum `dart analyze` + `dart test` +
    `dart pub publish --dry-run` on PR. Optional: a smoke job that
    activates the CLI and runs `create flutter_app` in a temp dir.
-7. **Welcome opt-in for first-time users** — first run could prompt
+4. **Welcome opt-in for first-time users** — first run could prompt
    for default org and write `.utopia.yaml` to `$XDG_CONFIG_HOME` (no
    files written to bare `$HOME`).
 

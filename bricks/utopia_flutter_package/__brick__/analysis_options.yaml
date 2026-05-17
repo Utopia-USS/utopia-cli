@@ -1,0 +1,9 @@
+include: package:utopia_lints/lints.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+
+formatter:
+  page_width: 120

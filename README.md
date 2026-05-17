@@ -1,84 +1,135 @@
-# Utopia Arch CLI
+# Utopia CLI 🦄
 
-A CLI tool for creating Flutter projects based on [utopia_arch](https://pub.dev/packages/utopia_arch).
+A command-line scaffolder for Flutter projects built on
+[`utopia_arch`](https://pub.dev/packages/utopia_arch) +
+[`utopia_hooks`](https://pub.dev/packages/utopia_hooks), with first-class
+[Claude Code skills](https://github.com/Utopia-USS/utopia-flutter-skills)
+integration baked into every generated project.
 
-## Installation
-
-```bash
-dart pub global activate utopia_arch_cli
-```
-
-Make sure you have the Dart SDK in your PATH.
-
-> **Note:** For development setup, see [SETUP.md](SETUP.md)
-
-## Usage
+## Install
 
 ```bash
-utopia_arch_cli --name <project_name> --org <organization>
+dart pub global activate utopia_cli
 ```
 
-### Options
-
-- `--name` / `-n` (required): Project name (must not contain '-' character)
-- `--org` / `-o` (required): Organization name in reverse domain notation (e.g., "io.utopiasoft")
-- `--platforms` / `-p` (optional): Platforms to support (default: "android,ios")
-- `--output` / `-d` (optional): Output directory (default: current directory)
-- `--help` / `-h`: Show help message
-
-### Examples
+Make sure `$HOME/.pub-cache/bin` is on your `PATH`. Verify:
 
 ```bash
-# Create a project in the current directory
-utopia_arch_cli --name my_app --org io.utopiasoft
-
-# Create a project with specific platforms
-utopia_arch_cli -n my_app -o io.utopiasoft -p android,ios
-
-# Create a project in a specific directory
-utopia_arch_cli -n my_app -o io.utopiasoft -d ~/projects
+utopia --version
 ```
 
-## Requirements
+## Quick start
 
-- Dart SDK >= 3.0.0
-- FVM (Flutter Version Manager) - [Install](https://fvm.app/documentation/getting-started)
-- Flutter SDK (will be installed by FVM)
+```bash
+utopia create flutter_app my_app --org io.utopiasoft
+cd my_app
+flutter run
+```
 
-## What's Included
+You now have a runnable Flutter app with a sample Screen/State/View
+feature and Claude Code skills pre-registered. Open Claude Code from the
+project and try `/utopia-hooks` to scaffold your next screen.
 
-When you create a project with `utopia_arch_cli`, everything is set up automatically:
+## Commands
 
-- ✅ Complete Flutter project structure (android/, ios/, web/, etc.)
-- ✅ Git repository initialized
-- ✅ Dependencies installed (`pub get`)
-- ✅ All files staged with `git add`
+| Command | Status | What it does |
+|---|---|---|
+| `utopia create flutter_app <name>` | ✓ | Scaffold a Utopia Flutter app. |
+| `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
+| `utopia update` | ✓ | Self-update from pub.dev. |
+| `utopia --version` | ✓ | Print the CLI version. |
+| `utopia add screen <name>` | planned | Scaffold a Screen/State/View triad in an existing project. |
+| `utopia add state <name>` | planned | Scaffold a global state hook. |
+| `utopia migrate bloc` | planned | Migrate `flutter_bloc` code to `utopia_hooks`. |
 
-## Next Steps
+Planned commands appear in `--help` but exit with a "coming soon" notice
+for now.
 
-After creating a project, you need to:
+### `utopia create flutter_app`
 
-1. **Update localization configuration:**
-   - Open `app_localizations.dart` in your project
-   - Add your Google Sheets `doc id` and `sheet id`
-   
-2. **Run code generation:**
-   ```bash
-   fvm dart run build_runner build
-   ```
-   (or `dart run build_runner build` if not using FVM)
+```
+utopia create flutter_app <name> [options]
 
-Then your project is ready to use!
+Options:
+  -o, --org              Org in reverse-domain notation
+                         (default: io.utopiasoft)
+  -p, --platforms        Comma-separated Flutter platforms
+                         (default: android,ios)
+  -d, --output-directory Where to create the project (default: .)
+      --application-id   iOS bundle / Android app id
+                         (default: <org>.<name>)
+      --description      Project description
+                         (default: "A Utopia Flutter project.")
+      --[no-]skills      Generate .claude/ skills config (default: on)
+      --[no-]pub-get     Run `flutter pub get` after generation
+      --[no-]git         Initialize a git repo
+```
 
-## Features
+### `utopia update`
 
-- ✅ Creates complete Flutter project structure (android/, ios/, web/, etc.)
-- ✅ Applies Utopia template with utopia_arch architecture
-- ✅ Automatically initializes git repository
-- ✅ Configures FVM if .fvmrc is present in template
-- ✅ Sets up proper project structure with all necessary dependencies
-- ✅ No need to run `flutter create` manually - everything is automated!
+Checks pub.dev for a newer release and runs
+`dart pub global activate utopia_cli <latest>` when one is available.
+
+## What you get from `flutter_app`
+
+```
+my_app/
+├── .claude/                   # Claude Code skills pre-registered
+│   ├── settings.json
+│   └── README.md
+├── lib/
+│   ├── app/                   # routing, theming, top-level providers
+│   ├── common/                # shared widgets and constants
+│   ├── screen/
+│   │   ├── splash/
+│   │   └── counter/           # sample Screen/State/View
+│   │       ├── counter_screen.dart
+│   │       ├── state/counter_state.dart
+│   │       └── view/counter_view.dart
+│   └── util/
+├── DEVELOPMENT.md             # Screen/State/View overview
+├── README.md
+└── pubspec.yaml
+```
+
+The counter feature demonstrates the Utopia pattern in three small
+files — copy it as the starting point for your own screens.
+
+## `.utopia.yaml` (optional)
+
+You can ship sensible defaults per-project. The CLI walks up from the
+current directory looking for `.utopia.yaml`:
+
+```yaml
+org: io.utopiasoft
+platforms: android,ios
+skills: true
+lints: utopia_lints
+```
+
+When present, these values are used as defaults for the matching `create`
+flags. Nothing is written to `$HOME`.
+
+## Migrating from `utopia_arch_cli`
+
+The `utopia_arch_cli` executable (versions `0.1.0-dev.*`) has been
+renamed to `utopia`. The old executable still works in `0.2.0` and prints
+a deprecation notice; it will be removed in `0.3.0`.
+
+| Old | New |
+|---|---|
+| `utopia_arch_cli --name my_app --org io.utopiasoft` | `utopia create flutter_app my_app --org io.utopiasoft` |
+| `dart pub global activate utopia_arch_cli` | `dart pub global activate utopia_cli` |
+
+Generated project structure is unchanged apart from the new sample
+counter feature and `.claude/` directory.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). The bricks ship in-repo under
+`bricks/` — when you edit a brick, the next `dart run bin/utopia.dart …`
+picks it up immediately (no `mason get` required).
 
 ## License
 
-See LICENSE file for details.
+BSD 2-Clause. See [`LICENSE`](LICENSE).

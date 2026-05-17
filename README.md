@@ -38,12 +38,38 @@ project and try `/utopia-hooks` to scaffold your next screen.
 | `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
-| `utopia add screen <name>` | planned | Scaffold a Screen/State/View triad in an existing project. |
+| `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
 | `utopia add state <name>` | planned | Scaffold a global state hook. |
 | `utopia migrate bloc` | planned | Migrate `flutter_bloc` code to `utopia_hooks`. |
 
 Planned commands appear in `--help` but exit with a "coming soon" notice
 for now.
+
+### `utopia add screen`
+
+Scaffolds three files at `lib/screen/<name>/`:
+
+```
+lib/screen/<name>/
+├── <name>_screen.dart           # HookWidget — wires state into view
+├── state/<name>_state.dart      # value class + use<Name>State() hook
+└── view/<name>_view.dart        # pure StatelessWidget
+```
+
+```
+utopia add screen <name> [options]
+
+Options:
+  -r, --route             Route path served by this screen (default: /<name>)
+  -d, --output-directory  Parent directory (default: lib/screen)
+```
+
+After scaffolding, the CLI prints a snippet you can paste into
+`lib/app/app_routing.dart` to register the new route.
+
+The brick is vendored from
+[`Utopia-USS/utopia-mason`](https://github.com/Utopia-USS/utopia-mason)'s
+`screen` brick and shipped in-repo for atomic versioning.
 
 ### `utopia create flutter_app`
 

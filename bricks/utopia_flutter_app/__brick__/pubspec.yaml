@@ -1,7 +1,8 @@
-name: {{package_name}} # TODO change package name
+name: {{package_name}}
+description: {{description}}
 publish_to: 'none'
 
-version: 0.0.1
+version: 0.0.1+1
 
 environment:
   sdk: ">=3.9.0 <4.0.0"

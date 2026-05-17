@@ -176,18 +176,18 @@ schema for marketplaces may differ in field names. If users hit
 
 ## 5. Suggested next steps (P2 backlog)
 
-1. **`utopia init skills`** — for projects created with `--no-skills`
-   (or any existing Flutter project) that later want the marketplace
-   pre-registered. Writes `.claude/settings.json` and `.claude/README.md`,
-   nothing else.
-2. **Plumb `.utopia.yaml` defaults into the argParser.** Read config in
+1. **Plumb `.utopia.yaml` defaults into the argParser.** Read config in
    the runner, pass into each `CreateSubCommand` constructor.
-3. **CI pipeline** — at minimum `dart analyze` + `dart test` +
-   `dart pub publish --dry-run` on PR. Optional: a smoke job that
-   activates the CLI and runs `create flutter_app` in a temp dir.
-4. **Welcome opt-in for first-time users** — first run could prompt
+2. **Welcome opt-in for first-time users** — first run could prompt
    for default org and write `.utopia.yaml` to `$XDG_CONFIG_HOME` (no
    files written to bare `$HOME`).
+3. **Smoke integration test in CI** — currently CI runs analyze/test/
+   dry-run but doesn't spin up a generated project. A Flutter-enabled
+   job that runs `create flutter_app smoke` + `flutter analyze` would
+   catch brick regressions.
+4. **Generated project lint hygiene** — pre-existing template files
+   trip 20+ info-level `directives_ordering` lints. Either sort imports
+   or relax the rule in the generated `analysis_options.yaml`.
 
 ---
 

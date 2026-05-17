@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0-dev.6] - 2026-05-17
+
+### Added
+
+- `utopia init skills` — writes `.claude/settings.json` and
+  `.claude/README.md` into the current directory, registering the
+  `Utopia-USS/utopia-flutter-skills` marketplace and enabling the
+  `utopia-hooks` plugin. Intended for projects created with
+  `--no-skills`, or any existing Flutter project that wants to opt in.
+  Flags: `--output-directory`/`-d` (default `.`), `--force`/`-f`
+  (overwrite existing settings).
+- New in-repo brick `bricks/skills/` (no template variables) backing
+  the command.
+- 3 new tests covering golden-path write, idempotency, and `--force`
+  overwrite.
+
 ## [0.2.0-dev.5] - 2026-05-17
 
 ### Added

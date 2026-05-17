@@ -7,8 +7,7 @@ void main() {
     late UtopiaCommandRunner runner;
 
     setUp(() {
-      runner = UtopiaCommandRunner(logger: Logger(level: Level.quiet))
-        ..checkForUpdates = false;
+      runner = UtopiaCommandRunner(logger: Logger(level: Level.quiet))..checkForUpdates = false;
     });
 
     test('rejects invalid project name (kebab-case)', () async {

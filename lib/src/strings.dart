@@ -50,8 +50,7 @@ Run `utopia update` to install.''';
 
 /// Deprecation notice shown when users invoke the old `utopia_arch_cli`
 /// executable name. Removed in 0.3.0.
-const deprecatedExecutableNotice =
-    'Notice: `utopia_arch_cli` has been renamed to `utopia`. The old name '
+const deprecatedExecutableNotice = 'Notice: `utopia_arch_cli` has been renamed to `utopia`. The old name '
     'still works for now and will be removed in v0.3.0. Run `utopia` going '
     'forward.';
 

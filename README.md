@@ -97,8 +97,7 @@ Example: in your Claude Code config, register the server as:
 ```
 
 Each MCP tool simply parses arguments back into CLI flags and runs the
-real command — no second source of truth. Marked experimental until
-real-world client coverage lands.
+real command — no second source of truth.
 
 ### `utopia create flutter_app`
 

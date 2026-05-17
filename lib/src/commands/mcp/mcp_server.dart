@@ -37,27 +37,24 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
             name: 'utopia_cli',
             version: packageVersion,
           ),
-          instructions:
-              'Utopia CLI MCP server — scaffold Flutter projects built on '
+          instructions: 'Utopia CLI MCP server — scaffold Flutter projects built on '
               'utopia_arch + utopia_hooks. Tools mirror the `utopia` '
               'executable. Run `utopia --help` for the full surface.',
-        );
+        ) {
+    // Register tools in the constructor (matches the dart_mcp example
+    // pattern). Registering inside `initialize()` after super.initialize()
+    // returned an empty tools/list — investigated and confirmed against
+    // dart_mcp 0.5.1's example/tools_server.dart.
+    _registerTools();
+  }
 
   final UtopiaCommandRunner _commandRunner;
-
-  @override
-  FutureOr<InitializeResult> initialize(InitializeRequest request) async {
-    final result = await super.initialize(request);
-    _registerTools();
-    return result;
-  }
 
   void _registerTools() {
     registerTool(
       Tool(
         name: 'create_flutter_app',
-        description:
-            'Scaffold a new Utopia Flutter app at <output_directory>/<name>. '
+        description: 'Scaffold a new Utopia Flutter app at <output_directory>/<name>. '
             'Wraps `utopia create flutter_app <name>`. Generates a runnable '
             'project with utopia_arch + utopia_hooks, a sample counter '
             'Screen/State/View feature, and `.claude/` registering the '
@@ -68,12 +65,10 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
               description: 'Dart package name in snake_case (e.g. "my_app").',
             ),
             'org': StringSchema(
-              description:
-                  'Organization in reverse-domain notation (default: io.utopiasoft).',
+              description: 'Organization in reverse-domain notation (default: io.utopiasoft).',
             ),
             'platforms': StringSchema(
-              description:
-                  'Comma-separated Flutter platforms, e.g. "android,ios,web" '
+              description: 'Comma-separated Flutter platforms, e.g. "android,ios,web" '
                   '(default: "android,ios").',
             ),
             'output_directory': StringSchema(
@@ -86,17 +81,14 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
               description: 'Project description.',
             ),
             'skills': BooleanSchema(
-              description:
-                  'Whether to generate the .claude/ skills marketplace config '
+              description: 'Whether to generate the .claude/ skills marketplace config '
                   '(default: true).',
             ),
             'pub_get': BooleanSchema(
-              description:
-                  'Run `flutter pub get` after generation (default: true).',
+              description: 'Run `flutter pub get` after generation (default: true).',
             ),
             'git': BooleanSchema(
-              description:
-                  'Initialize a git repository (default: true).',
+              description: 'Initialize a git repository (default: true).',
             ),
           },
           required: ['name'],
@@ -108,8 +100,7 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
     registerTool(
       Tool(
         name: 'create_flutter_package',
-        description:
-            'Scaffold a Utopia Flutter package (reusable library). '
+        description: 'Scaffold a Utopia Flutter package (reusable library). '
             'Wraps `utopia create flutter_package <name>`.',
         inputSchema: ObjectSchema(
           properties: {
@@ -121,8 +112,7 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
               description: 'Parent directory for the package (default: ".").',
             ),
             'skills': BooleanSchema(
-              description:
-                  'Whether to generate the .claude/ skills config (default: true).',
+              description: 'Whether to generate the .claude/ skills config (default: true).',
             ),
             'pub_get': BooleanSchema(
               description: 'Run `flutter pub get` after generation (default: true).',
@@ -138,19 +128,16 @@ final class UtopiaMcpServer extends MCPServer with ToolsSupport {
     registerTool(
       Tool(
         name: 'add_screen',
-        description:
-            'Scaffold a Screen/State/View triad at <output_directory>/<name>/. '
+        description: 'Scaffold a Screen/State/View triad at <output_directory>/<name>/. '
             'Wraps `utopia add screen <name>`. Run this from the root of an '
             'existing Utopia Flutter project.',
         inputSchema: ObjectSchema(
           properties: {
             'name': StringSchema(
-              description:
-                  'Screen name in snake_case (e.g. "auth_login").',
+              description: 'Screen name in snake_case (e.g. "auth_login").',
             ),
             'route': StringSchema(
-              description:
-                  'Route path served by this screen (default: "/<name>").',
+              description: 'Route path served by this screen (default: "/<name>").',
             ),
             'output_directory': StringSchema(
               description: 'Parent directory (default: "lib/screen").',

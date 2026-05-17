@@ -15,8 +15,7 @@ typedef ServerFactory = MCPServer Function({required StreamChannel<String> chann
 /// Factory for the JSON-line stream channel — defaults to stdio.
 typedef ChannelFactory = StreamChannel<String> Function();
 
-StreamChannel<String> _defaultChannelFactory() =>
-    stdioChannel(input: stdin, output: stdout);
+StreamChannel<String> _defaultChannelFactory() => stdioChannel(input: stdin, output: stdout);
 
 /// `utopia mcp` — boots a Model Context Protocol server over stdio that
 /// exposes `utopia create`, `utopia add screen`, and friends as MCP tools
@@ -35,9 +34,8 @@ class McpCommand extends Command<int> {
   String get name => commandName;
 
   @override
-  String get description =>
-      'Start an MCP (Model Context Protocol) server exposing the Utopia '
-      'CLI as tools for AI agents. Runs over stdio. Experimental.';
+  String get description => 'Start an MCP (Model Context Protocol) server exposing the Utopia '
+      'CLI as tools for AI agents. Runs over stdio.';
 
   @override
   Future<int> run() async {

@@ -1,234 +1,216 @@
 import 'dart:async';
-import 'dart:io' show stderr;
+import 'dart:convert';
+import 'dart:io' as io;
 
-import 'package:args/command_runner.dart';
 import 'package:dart_mcp/server.dart';
-import 'package:mason_logger/mason_logger.dart';
-import 'package:stream_channel/stream_channel.dart';
+import 'package:dart_mcp/stdio.dart';
+import 'package:meta/meta.dart';
 
-import '../../command_runner.dart';
+import '../describe/parser.dart';
+import '../doctor/check.dart';
+import '../doctor/checks.dart' as doctor_checks;
+import '../doctor/model.dart' as doctor_model;
 import '../../version.dart';
 
-/// MCP server exposing the Utopia CLI surface as tools. Agents (e.g.
-/// Claude Code) can scaffold projects and screens via JSON-RPC instead of
-/// shelling out.
+/// MCP server exposing `utopia describe` and `utopia doctor` as MCP tools.
 ///
-/// Tools registered (matches `utopia --help`):
-///   • `create_flutter_app` — `utopia create flutter_app <name> ...`
-///   • `create_flutter_package` — `utopia create flutter_package <name> ...`
-///   • `add_screen` — `utopia add screen <name> ...`
+/// **Scoping principle (see `docs/describe_schema.md` and the plan):**
+/// Only operational tools that earn their keep on the MCP-vs-Bash test
+/// are exposed - i.e. tools called multiple times per session with
+/// structured output the agent reasons over. One-shot generators
+/// (`utopia create *`, `utopia add screen`) stay as Bash invocations.
 ///
-/// Each tool simply parses MCP arguments back into CLI flags and runs
-/// `UtopiaCommandRunner.run(...)`. That keeps the MCP surface 1:1 with the
-/// CLI surface — no second source of truth.
-final class UtopiaMcpServer extends MCPServer with ToolsSupport {
-  UtopiaMcpServer({
-    required StreamChannel<String> channel,
-    Logger? logger,
-    UtopiaCommandRunner? commandRunner,
-  })  : _commandRunner = commandRunner ??
-            UtopiaCommandRunner(
-              logger: logger ?? Logger(),
-              disableUpdateCheck: true,
-            ),
-        super.fromStreamChannel(
-          channel,
+/// Tools exposed:
+/// - `describe` - full project structure as JSON
+/// - `describe_routes` - just the routes view
+/// - `doctor` - repo-wide audit with tag-based selection
+base class UtopiaMcpServer extends MCPServer with ToolsSupport {
+  UtopiaMcpServer(super.channel)
+      : super.fromStreamChannel(
           implementation: Implementation(
-            name: 'utopia_cli',
+            name: 'utopia',
             version: packageVersion,
           ),
-          instructions: 'Utopia CLI MCP server — scaffold Flutter projects built on '
-              'utopia_arch + utopia_hooks. Tools mirror the `utopia` '
-              'executable. Run `utopia --help` for the full surface.',
+          instructions: '''
+Utopia CLI MCP server. Exposes project-introspection (`describe`) and
+repo-audit (`doctor`) tools for Flutter projects built on utopia_arch
++ utopia_hooks.
+
+Project-bootstrapping commands (`utopia create flutter_app`,
+`utopia create flutter_package`, `utopia add screen`, `utopia init
+skills`) are intentionally NOT exposed here - invoke them via Bash
+instead. See the project's README for rationale (MCP-vs-Bash test).
+''',
         ) {
-    // Register tools in the constructor (matches the dart_mcp example
-    // pattern). Registering inside `initialize()` after super.initialize()
-    // returned an empty tools/list — investigated and confirmed against
-    // dart_mcp 0.5.1's example/tools_server.dart.
-    _registerTools();
+    registerTool(_describeTool, _runDescribe);
+    registerTool(_describeRoutesTool, _runDescribeRoutes);
+    registerTool(_doctorTool, _runDoctor);
   }
 
-  final UtopiaCommandRunner _commandRunner;
+  // --- describe ------------------------------------------------------------
 
-  void _registerTools() {
-    registerTool(
-      Tool(
-        name: 'create_flutter_app',
-        description: 'Scaffold a new Utopia Flutter app at <output_directory>/<name>. '
-            'Wraps `utopia create flutter_app <name>`. Generates a runnable '
-            'project with utopia_arch + utopia_hooks, a sample counter '
-            'Screen/State/View feature, and `.claude/` registering the '
-            'Utopia-USS/utopia-flutter-skills marketplace (unless skills=false).',
-        inputSchema: ObjectSchema(
-          properties: {
-            'name': StringSchema(
-              description: 'Dart package name in snake_case (e.g. "my_app").',
-            ),
-            'org': StringSchema(
-              description: 'Organization in reverse-domain notation (default: io.utopiasoft).',
-            ),
-            'platforms': StringSchema(
-              description: 'Comma-separated Flutter platforms, e.g. "android,ios,web" '
-                  '(default: "android,ios").',
-            ),
-            'output_directory': StringSchema(
-              description: 'Parent directory for the project (default: ".").',
-            ),
-            'application_id': StringSchema(
-              description: 'iOS bundle / Android app id (default: <org>.<name>).',
-            ),
-            'description': StringSchema(
-              description: 'Project description.',
-            ),
-            'skills': BooleanSchema(
-              description: 'Whether to generate the .claude/ skills marketplace config '
-                  '(default: true).',
-            ),
-            'pub_get': BooleanSchema(
-              description: 'Run `flutter pub get` after generation (default: true).',
-            ),
-            'git': BooleanSchema(
-              description: 'Initialize a git repository (default: true).',
-            ),
-          },
-          required: ['name'],
+  final _describeTool = Tool(
+    name: 'describe',
+    description:
+        'Emit project structure (screens, routes, global states, services, '
+        'deps, foreign-framework artefacts) as versioned JSON. Use to learn '
+        'what exists in a project in one call instead of crawling files.',
+    inputSchema: Schema.object(
+      properties: {
+        'project_root': Schema.string(
+          description: 'Project (or workspace) root. Defaults to CWD if omitted.',
         ),
-      ),
-      _handleCreateFlutterApp,
-    );
+      },
+    ),
+  );
 
-    registerTool(
-      Tool(
-        name: 'create_flutter_package',
-        description: 'Scaffold a Utopia Flutter package (reusable library). '
-            'Wraps `utopia create flutter_package <name>`.',
-        inputSchema: ObjectSchema(
-          properties: {
-            'name': StringSchema(
-              description: 'Dart package name in snake_case.',
-            ),
-            'description': StringSchema(description: 'Package description.'),
-            'output_directory': StringSchema(
-              description: 'Parent directory for the package (default: ".").',
-            ),
-            'skills': BooleanSchema(
-              description: 'Whether to generate the .claude/ skills config (default: true).',
-            ),
-            'pub_get': BooleanSchema(
-              description: 'Run `flutter pub get` after generation (default: true).',
-            ),
-            'git': BooleanSchema(description: 'Initialize git (default: true).'),
-          },
-          required: ['name'],
-        ),
-      ),
-      _handleCreateFlutterPackage,
-    );
-
-    registerTool(
-      Tool(
-        name: 'add_screen',
-        description: 'Scaffold a Screen/State/View triad at <output_directory>/<name>/. '
-            'Wraps `utopia add screen <name>`. Run this from the root of an '
-            'existing Utopia Flutter project.',
-        inputSchema: ObjectSchema(
-          properties: {
-            'name': StringSchema(
-              description: 'Screen name in snake_case (e.g. "auth_login").',
-            ),
-            'route': StringSchema(
-              description: 'Route path served by this screen (default: "/<name>").',
-            ),
-            'output_directory': StringSchema(
-              description: 'Parent directory (default: "lib/screen").',
-            ),
-          },
-          required: ['name'],
-        ),
-      ),
-      _handleAddScreen,
-    );
-  }
-
-  Future<CallToolResult> _handleCreateFlutterApp(CallToolRequest request) async {
-    final args = request.arguments ?? const {};
-    final cli = <String>['create', 'flutter_app', args['name']! as String];
-    _addStringOption(cli, args, key: 'org', flag: '--org');
-    _addStringOption(cli, args, key: 'platforms', flag: '--platforms');
-    _addStringOption(cli, args, key: 'output_directory', flag: '--output-directory');
-    _addStringOption(cli, args, key: 'application_id', flag: '--application-id');
-    _addStringOption(cli, args, key: 'description', flag: '--description');
-    _addBoolFlag(cli, args, key: 'skills', onFlag: '--skills', offFlag: '--no-skills');
-    _addBoolFlag(cli, args, key: 'pub_get', onFlag: '--pub-get', offFlag: '--no-pub-get');
-    _addBoolFlag(cli, args, key: 'git', onFlag: '--git', offFlag: '--no-git');
-    return _runCli(cli, toolName: 'create_flutter_app');
-  }
-
-  Future<CallToolResult> _handleCreateFlutterPackage(CallToolRequest request) async {
-    final args = request.arguments ?? const {};
-    final cli = <String>['create', 'flutter_package', args['name']! as String];
-    _addStringOption(cli, args, key: 'description', flag: '--description');
-    _addStringOption(cli, args, key: 'output_directory', flag: '--output-directory');
-    _addBoolFlag(cli, args, key: 'skills', onFlag: '--skills', offFlag: '--no-skills');
-    _addBoolFlag(cli, args, key: 'pub_get', onFlag: '--pub-get', offFlag: '--no-pub-get');
-    _addBoolFlag(cli, args, key: 'git', onFlag: '--git', offFlag: '--no-git');
-    return _runCli(cli, toolName: 'create_flutter_package');
-  }
-
-  Future<CallToolResult> _handleAddScreen(CallToolRequest request) async {
-    final args = request.arguments ?? const {};
-    final cli = <String>['add', 'screen', args['name']! as String];
-    _addStringOption(cli, args, key: 'route', flag: '--route');
-    _addStringOption(cli, args, key: 'output_directory', flag: '--output-directory');
-    return _runCli(cli, toolName: 'add_screen');
-  }
-
-  void _addStringOption(
-    List<String> cli,
-    Map<String, Object?> args, {
-    required String key,
-    required String flag,
-  }) {
-    final value = args[key];
-    if (value is String && value.isNotEmpty) cli.addAll([flag, value]);
-  }
-
-  void _addBoolFlag(
-    List<String> cli,
-    Map<String, Object?> args, {
-    required String key,
-    required String onFlag,
-    required String offFlag,
-  }) {
-    final value = args[key];
-    if (value is bool) cli.add(value ? onFlag : offFlag);
-  }
-
-  Future<CallToolResult> _runCli(
-    List<String> args, {
-    required String toolName,
-  }) async {
-    final commandLine = 'utopia ${args.join(' ')}';
+  FutureOr<CallToolResult> _runDescribe(CallToolRequest request) async {
+    final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
     try {
-      final exitCode = await _commandRunner.run(args);
-      if (exitCode == ExitCode.success.code) {
-        return CallToolResult(
-          content: [TextContent(text: '"$toolName" succeeded.\n$commandLine')],
-        );
-      }
-      final msg = '"$toolName" exited with code $exitCode.\n$commandLine';
-      stderr.writeln('[utopia_mcp] $msg');
-      return CallToolResult(content: [TextContent(text: msg)], isError: true);
-    } on UsageException catch (e) {
-      final msg = '"$toolName" usage error: ${e.message}\n$commandLine';
-      stderr.writeln('[utopia_mcp] $msg');
-      return CallToolResult(content: [TextContent(text: msg)], isError: true);
-    } on Exception catch (e, stackTrace) {
-      final msg = '"$toolName" threw: $e\n$commandLine';
-      stderr
-        ..writeln('[utopia_mcp] $msg')
-        ..writeln('[utopia_mcp] $stackTrace');
-      return CallToolResult(content: [TextContent(text: msg)], isError: true);
+      final describe = const DescribeParser().parse(root);
+      final json = const JsonEncoder.withIndent('  ').convert(describe.toJson());
+      return CallToolResult(content: [TextContent(text: json)]);
+    } on Object catch (e, st) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'describe failed: $e\n$st')],
+      );
     }
   }
+
+  // --- describe_routes ----------------------------------------------------
+
+  final _describeRoutesTool = Tool(
+    name: 'describe_routes',
+    description: 'Like `describe` but emits only the routes view per package. '
+        'Use to enumerate paths / detect conflicts cheaply.',
+    inputSchema: Schema.object(
+      properties: {
+        'project_root': Schema.string(
+          description: 'Project (or workspace) root. Defaults to CWD if omitted.',
+        ),
+      },
+    ),
+  );
+
+  FutureOr<CallToolResult> _runDescribeRoutes(CallToolRequest request) async {
+    final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
+    try {
+      final describe = const DescribeParser().parse(root);
+      final view = <String, dynamic>{
+        'schema_version': describe.schemaVersion,
+        'packages': describe.packages.map((pkg) {
+          final routes = pkg.screens
+              .where((s) => s.route != null)
+              .map((s) => {
+                    'screen': s.name,
+                    'kind': s.kind.name,
+                    'file': s.file,
+                    'path': s.route!.path,
+                    'config_builder': s.route!.configBuilder,
+                    'confidence': s.route!.confidence.name,
+                  })
+              .toList();
+          return {
+            'name': pkg.name,
+            'routing': pkg.routing?.toJson(),
+            'routes': routes,
+          };
+        }).toList(),
+      };
+      final json = const JsonEncoder.withIndent('  ').convert(view);
+      return CallToolResult(content: [TextContent(text: json)]);
+    } on Object catch (e, st) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'describe_routes failed: $e\n$st')],
+      );
+    }
+  }
+
+  // --- doctor -------------------------------------------------------------
+
+  final _doctorTool = Tool(
+    name: 'doctor',
+    description:
+        'Repo-wide audit. Returns structured findings { rule_id, tag, '
+        'severity, file, line, message, fix } across setup / conventions / '
+        'artifacts / imports / structure tags. Use after refactors or '
+        'before commit to catch drift.',
+    inputSchema: Schema.object(
+      properties: {
+        'project_root': Schema.string(
+          description: 'Project (or workspace) root. Defaults to CWD if omitted.',
+        ),
+        'check': Schema.list(
+          description:
+              'Tags / sub-tags / rule IDs to run ONLY (allowlist). E.g. '
+              '["setup", "artifacts:bloc"]. If omitted, smart default activates '
+              'checks based on pubspec deps.',
+          items: Schema.string(),
+        ),
+        'skip': Schema.list(
+          description: 'Tags / sub-tags / rule IDs to exclude (denylist).',
+          items: Schema.string(),
+        ),
+        'strict': Schema.bool(
+          description: 'Bypass activation gates; run every non-skipped check.',
+        ),
+      },
+    ),
+  );
+
+  FutureOr<CallToolResult> _runDoctor(CallToolRequest request) async {
+    final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
+    final include = _stringListArg(request, 'check') ?? const <String>[];
+    final exclude = _stringListArg(request, 'skip') ?? const <String>[];
+    final strict = (request.arguments?['strict'] as bool?) ?? false;
+
+    try {
+      final describe = const DescribeParser().parse(root);
+      final selection = CheckSelection(include: include, exclude: exclude, strict: strict);
+      final activeChecks = doctor_checks.allChecks.where((c) => selection.shouldRun(c, describe)).toList();
+      final findings = <doctor_model.Finding>[];
+      for (final check in activeChecks) {
+        findings.addAll(check.run(describe, root));
+      }
+      final report = doctor_model.DoctorReport(
+        schemaVersion: 1,
+        projectRoot: root,
+        activeChecks: activeChecks.map((c) => c.id).toList(),
+        findings: findings,
+        summary: doctor_model.DoctorSummary(
+          errorCount: findings.where((f) => f.severity == doctor_model.Severity.error).length,
+          warningCount: findings.where((f) => f.severity == doctor_model.Severity.warning).length,
+          infoCount: findings.where((f) => f.severity == doctor_model.Severity.info).length,
+        ),
+      );
+      final json = const JsonEncoder.withIndent('  ').convert(report.toJson());
+      return CallToolResult(content: [TextContent(text: json)]);
+    } on Object catch (e, st) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'doctor failed: $e\n$st')],
+      );
+    }
+  }
+
+  // --- helpers ------------------------------------------------------------
+
+  String? _stringArg(CallToolRequest request, String key) {
+    final v = request.arguments?[key];
+    return v is String && v.isNotEmpty ? v : null;
+  }
+
+  List<String>? _stringListArg(CallToolRequest request, String key) {
+    final v = request.arguments?[key];
+    if (v is List) return v.map((e) => e.toString()).toList();
+    return null;
+  }
+}
+
+/// Boot the MCP server over stdio.
+@visibleForTesting
+void runMcpServer({io.Stdin? stdin, io.Stdout? stdout}) {
+  UtopiaMcpServer(stdioChannel(input: stdin ?? io.stdin, output: stdout ?? io.stdout));
 }

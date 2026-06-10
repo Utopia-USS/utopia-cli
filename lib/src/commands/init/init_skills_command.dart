@@ -96,6 +96,44 @@ class InitSkillsCommand extends Command<int> {
       ..info('')
       ..info('Marketplace: ${strings.skillsMarketplaceUrl}');
 
+    _checkProjectSetup(target);
     return ExitCode.success.code;
+  }
+
+  /// Check for missing utopia stack deps + lint extension. Emit hints
+  /// only - do NOT mutate the user's pubspec (YAML mutation is fragile;
+  /// the user knows their project better).
+  void _checkProjectSetup(Directory target) {
+    final pubspec = File(p.join(target.path, 'pubspec.yaml'));
+    final analysisOptions = File(p.join(target.path, 'analysis_options.yaml'));
+
+    final issues = <String>[];
+
+    if (pubspec.existsSync()) {
+      final content = pubspec.readAsStringSync();
+      if (!content.contains('utopia_arch')) {
+        issues.add('  • pubspec.yaml does not declare `utopia_arch` - add to dependencies');
+      }
+    }
+
+    if (analysisOptions.existsSync()) {
+      if (!analysisOptions.readAsStringSync().contains('utopia_lints')) {
+        issues.add('  • analysis_options.yaml does not extend `utopia_lints` - '
+            'add `include: package:utopia_lints/lints.yaml` at the top');
+      }
+    } else if (pubspec.existsSync()) {
+      issues.add('  • No analysis_options.yaml - create one with '
+          '`include: package:utopia_lints/lints.yaml`');
+    }
+
+    if (issues.isEmpty) return;
+
+    _logger
+      ..info('')
+      ..info('To complete utopia setup in this project:');
+    for (final issue in issues) {
+      _logger.info(issue);
+    }
+    _logger.info('Run `utopia doctor` for full setup audit.');
   }
 }

@@ -114,8 +114,13 @@ utopia_cli/
 | `pub_updater` | `utopia update` self-update | New |
 | `yaml` | `.utopia.yaml` reader | New |
 | `meta` | `@visibleForTesting` | New |
-| `dart_mcp` | MCP server exposure | New (added in 0.2.0-dev.3) |
 | `test` (dev) | unit tests | Already used |
+
+(`dart_mcp` was added in 0.2.0-dev.3 for `utopia mcp` and removed in
+the unreleased revision - see CHANGELOG. The MCP server only wrapped
+one-shot generative tools and failed the MCP-vs-Bash test on all five
+dimensions; slated for re-introduction once `describe` / `doctor`
+operational tools land.)
 
 Avoid: `cli_completion` (over-budget for MVP), `pana` (lint tooling, not
 needed at runtime).
@@ -252,8 +257,10 @@ generated at release time from `pubspec.yaml`.
 | Command | Status | Notes |
 |---|---|---|
 | `utopia add screen <name>` | ✓ implemented | `bricks/screen/` vendored from `Utopia-USS/utopia-mason`. |
-| `utopia mcp` | ✓ implemented | MCP server over stdio. |
-| `utopia init skills` | planned | Writes `.claude/` into an existing project. |
+| ~~`utopia mcp`~~ | REMOVED | Dropped post-review - see CHANGELOG. Slated for re-introduction scoped to `describe` / `doctor`. |
+| `utopia init skills` | ✓ implemented | Writes `.claude/` into an existing project. |
+| `utopia describe` | planned | JSON project structure (screens / routes / states / services / deps). |
+| `utopia doctor` | planned | Repo-wide audit with tagged checks (setup / conventions / artifacts / imports / structure). |
 
 **Dropped from scope** during PR review:
 

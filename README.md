@@ -38,7 +38,10 @@ project and try `/utopia-hooks` to scaffold your next screen.
 | `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
 | `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
 | `utopia init skills` | ✓ | Register the skills marketplace in an existing project. |
-| `utopia mcp` | ✓ | Boot an MCP server exposing the CLI as tools for AI agents. |
+| `utopia describe` | ✓ | Emit project structure (screens, routes, states, services, deps) as JSON for agents. |
+| `utopia doctor` | ✓ | Repo-wide audit (setup, conventions, artifacts, imports, structure) with tag-filtered checks. |
+| `utopia mcp` | ✓ | Boot MCP server exposing `describe`, `describe_routes`, `doctor` for AI agents. |
+| `utopia bump` | ✓ | Bump all `utopia_*` deps in pubspec.yaml to latest pub.dev versions. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
 
@@ -86,11 +89,69 @@ Options:
   -f, --force             Overwrite an existing .claude/settings.json
 ```
 
-### `utopia mcp` — MCP server for AI agents
+### `utopia describe`
 
-Exposes the CLI surface as a [Model Context Protocol](https://modelcontextprotocol.io)
-server over stdio. Agents (Claude Code, Cursor, etc.) can scaffold
-projects and screens via JSON-RPC instead of shelling out.
+Emit project structure as JSON. Output schema is versioned
+(`schema_version: 1`) and documented in [`docs/describe_schema.md`](docs/describe_schema.md);
+downstream tooling (skills, MCP) pins to it.
+
+```
+utopia describe [options]
+
+Options:
+  -C, --project-root  Project (or workspace) root. Defaults to CWD.
+  -o, --output        Output file. Defaults to `-` (stdout).
+      --[no-]pretty   Pretty-print JSON. Default on.
+      --routes-only   Only the routes view (useful for piping).
+```
+
+Detects monorepo workspaces (Melos), screen kinds (routed / sheet /
+dialog / non_routed_page / subscreen_fragment / bare_screen /
+auto_route_page), routing strategy, global states, services, and
+foreign-framework artefacts. Discovery notes flag unresolved
+references rather than silently skipping them.
+
+### `utopia doctor`
+
+Repo-wide audit. Complements the per-file `quality_check.sh`
+PostToolUse hook in the `utopia-hooks` skill - that fires on every
+edit; doctor catches drift across the whole project on demand and in
+CI.
+
+```
+utopia doctor [options]
+
+Options:
+  -C, --project-root  Project (or workspace) root. Defaults to CWD.
+  -o, --output        Output file. Defaults to `-` (stdout).
+      --check=...     Run only these tags / sub-tags / rule IDs.
+      --skip=...      Exclude these tags / sub-tags / rule IDs.
+      --strict        Bypass activation gates; run all checks.
+      --[no-]pretty   Pretty-print JSON. Default on.
+      --human         Also print a human-readable summary to stderr.
+```
+
+Tag taxonomy (used by `--check` / `--skip`):
+
+| Tag | Covers |
+|---|---|
+| `setup` | pubspec coherence, `utopia_lints` extension, `.claude/` settings, plugin enablement |
+| `conventions` | per-file utopia_hooks rules scanned repo-wide |
+| `artifacts` | foreign framework patterns. Sub-tags: `artifacts:bloc`, `artifacts:riverpod`, `artifacts:provider`, `artifacts:mobx`, `artifacts:getx`, `artifacts:stateful` |
+| `imports` | banned direct imports (`package:flutter_hooks/`) |
+| `structure` | cross-file invariants (orphan state files, etc.) |
+
+Default behaviour: `artifacts:bloc` runs only if `flutter_bloc` is in
+the pubspec; same for `:riverpod`, `:provider`, `:mobx`, `:getx`.
+`setup` and `conventions` run on any project that declares
+`utopia_arch` or `utopia_hooks`. `--strict` overrides all gates.
+
+### `utopia mcp` - MCP server for AI agents
+
+Exposes operational tools as a [Model Context Protocol](https://modelcontextprotocol.io)
+server over stdio. Scoped intentionally: only tools that earn their
+keep on the MCP-vs-Bash test - i.e. called multiple times per session
+with structured output the agent reasons over.
 
 ```
 utopia mcp
@@ -98,13 +159,18 @@ utopia mcp
 
 Tools registered:
 
-| Tool | Wraps |
-|---|---|
-| `create_flutter_app` | `utopia create flutter_app <name>` |
-| `create_flutter_package` | `utopia create flutter_package <name>` |
-| `add_screen` | `utopia add screen <name>` |
+| Tool | Wraps | Why MCP vs Bash |
+|---|---|---|
+| `describe` | `utopia describe` | Structured JSON output, called repeatedly across a refactor session |
+| `describe_routes` | `utopia describe --routes-only` | Same; subset for cheap path enumeration |
+| `doctor` | `utopia doctor` | Structured findings array agents reason over (`{file, line, rule_id, severity}`) |
 
-Example: in your Claude Code config, register the server as:
+Generators (`utopia create *`, `utopia add screen`, `utopia init
+skills`) are **not** exposed via MCP - they're one-shot, return only
+"done"/"error", and gain nothing from the MCP transport. Agents
+should invoke them via Bash.
+
+Example: register in your Claude Code config:
 
 ```json
 {
@@ -113,9 +179,6 @@ Example: in your Claude Code config, register the server as:
   }
 }
 ```
-
-Each MCP tool simply parses arguments back into CLI flags and runs the
-real command — no second source of truth.
 
 ### `utopia create flutter_app`
 

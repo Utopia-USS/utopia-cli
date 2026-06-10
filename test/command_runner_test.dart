@@ -31,15 +31,15 @@ void main() {
       expect(exitCode, ExitCode.usage.code);
     });
 
-    test('exposes create, add, update, mcp subcommands', () {
+    test('exposes create, add, init, describe, doctor, mcp, bump, update subcommands', () {
       final runner = UtopiaCommandRunner();
       expect(
         runner.commands.keys,
-        containsAll(['create', 'add', 'update', 'mcp']),
+        containsAll(['create', 'add', 'init', 'describe', 'doctor', 'mcp', 'bump', 'update']),
       );
     });
 
-    test('does not expose dropped migrate / add-state stubs', () {
+    test('does not expose dropped migrate / add-state commands', () {
       final runner = UtopiaCommandRunner();
       expect(runner.commands.keys, isNot(contains('migrate')));
       final add = runner.commands['add']!;

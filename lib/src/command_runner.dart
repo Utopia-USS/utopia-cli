@@ -7,7 +7,10 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:pub_updater/pub_updater.dart';
 
 import 'commands/add/add_command.dart';
+import 'commands/bump_command.dart';
 import 'commands/create/create_command.dart';
+import 'commands/describe/describe_command.dart';
+import 'commands/doctor/doctor_command.dart';
 import 'commands/init/init_command.dart';
 import 'commands/mcp/mcp_command.dart';
 import 'commands/update_command.dart';
@@ -43,16 +46,18 @@ class UtopiaCommandRunner extends CommandRunner<int> {
     addCommand(CreateCommand(logger: _logger));
     addCommand(AddCommand(logger: _logger));
     addCommand(InitCommand(logger: _logger));
-    addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
+    addCommand(DescribeCommand(logger: _logger));
+    addCommand(DoctorCommand(logger: _logger));
     addCommand(McpCommand());
+    addCommand(BumpCommand(logger: _logger, pubUpdater: _pubUpdater));
+    addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
   }
 
   final Logger _logger;
   final PubUpdater _pubUpdater;
 
   /// Whether to check pub.dev for a newer release after each command.
-  /// Disabled by tests and by embedders (e.g. the MCP server) that don't
-  /// want post-run network calls.
+  /// Disabled by tests that don't want post-run network calls.
   bool checkForUpdates;
 
   @override

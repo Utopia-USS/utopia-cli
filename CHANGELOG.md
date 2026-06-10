@@ -2,6 +2,136 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`utopia describe`** - emits project structure as versioned JSON
+  (`schema_version: 1`). One tool call replaces many file reads when
+  agents need to know what's in the project. Detects:
+  - Workspace shape (single package vs Melos monorepo, with package
+    glob expansion)
+  - Screens classified by kind (`routed_screen`, `sheet`, `dialog`,
+    `non_routed_page`, `subscreen_fragment`, `bare_screen`,
+    `auto_route_page`)
+  - Multiple states / views per screen (real apps have 0, 1, 2, or 4)
+  - Routing strategy (`static_const_aggregator`, `auto_route`,
+    `go_router`, `imperative_only`)
+  - Global states with cross-package origin tracking
+  - Services + injector registration kind
+  - Foreign-framework artefacts (bloc / cubit / riverpod / provider /
+    mobx / get_x / stateful_widget / direct flutter_hooks imports)
+  - Discovery notes for parse-time issues (cross-file references,
+    computed paths, multiple `@RoutePage` per file)
+  - Flags: `-C <root>`, `-o <file>`, `--pretty` / `--no-pretty`,
+    `--routes-only`
+  - Schema doc at `docs/describe_schema.md` - public API contract
+- **`utopia doctor`** - repo-wide audit complementing the
+  `quality_check.sh` PostToolUse hook in the `utopia-hooks` skill.
+  - Tag-based check selection: `--check=setup,artifacts:bloc`,
+    `--skip=structure`, `--strict` (bypass activation gates)
+  - Smart conditional activation: `artifacts:bloc` only runs if
+    `flutter_bloc` is in pubspec; setup / conventions gate on
+    `utopia_arch` OR `utopia_hooks` presence (revised from
+    hooks-only after the brick was found to not declare hooks
+    directly, which would have silenced the check)
+  - MVP check set across 5 tags:
+    - `setup`: lints_not_extended, utopia_hooks_plugin_not_enabled,
+      claude_settings_missing
+    - `conventions`: state_has_navigator, state_has_buildcontext,
+      view_uses_hooks, screen_extends_stateful
+    - `artifacts`: bloc, riverpod, provider, mobx, getx,
+      stateful_widget
+    - `imports`: flutter_hooks_direct
+    - `structure`: orphan_state
+  - Structured `{rule_id, tag, sub_tag, severity, file, line,
+    message, fix}` findings array + summary counts
+  - Non-zero exit code on `error`-severity findings (CI gate)
+  - `--human` flag prints a digest to stderr alongside JSON
+
+### Removed
+
+- **`utopia mcp` command and the MCP server** - dropped after PR review
+  identified that the server wrapped only one-shot generative tools
+  (`create_flutter_app`, `create_flutter_package`, `add_screen`) which
+  add zero value over invoking the CLI via Bash. MCP earns its keep
+  only on high-frequency / structured-output operational tools (cf.
+  VGV's `very_good test`). The current set fails on all five
+  dimensions, so the wrapper is pure transport overhead. Slated for
+  re-introduction scoped to `describe` + `doctor`.
+- `dart_mcp` dependency from `pubspec.yaml`.
+- `mcp` topic from `pubspec.yaml`.
+- `lib/src/commands/mcp/` directory.
+- `test/commands/mcp_command_test.dart`.
+
+### Fixed (smoke-test + adversarial verification pass)
+
+Nine issues found by running `describe`/`doctor` against four real Utopia
+projects (habicy, jolly-phonics-apps, qbt-black-phone, madrosc-tlumu) and
+two independent verification passes:
+
+- `describe`: function-based dialogs/sheets (top-level `showXxx()` with no
+  matching widget class, e.g. `showDeckUpsellDialog`) were dropped. Now
+  detected as `kind: dialog`/`sheet`.
+- `describe`: a screen-state hoisted into the providers map (registered
+  global living under `lib/screen/.../state/`) is now included in
+  `global_states`.
+- `describe`: `provider` framework false negative - `Provider.of<>()` and
+  `MultiProvider` patterns were not detected. Added.
+- `describe`: pattern matching now skips comment lines (avoids matching a
+  framework keyword inside a doc comment).
+- `describe`: a parameterized (arg-taking) state hook in the conventional
+  `state/` dir that isn't registered is now correctly treated as a helper,
+  not a phantom global. No-arg conventional states (cross-package global
+  pattern) are still included.
+- `describe`: bad `-C <root>` path now emits a `project_root_not_found`
+  error note + non-zero exit instead of a silently-empty result; a dir with
+  no package emits `no_package_found`.
+- `doctor` `conventions.state_has_buildcontext`: no longer false-positives
+  on `BuildContext` mentioned in comments or in `extension X on BuildContext`
+  declarations.
+- `doctor` `structure.orphan_state`: rewritten from a fragile same-directory
+  heuristic to "the state's hook is defined but never referenced anywhere in
+  the package." Fixes false positives on cross-directory / cross-screen state
+  usage; also catches dead hooks whose return type isn't `*State`.
+
+### Added (Phase 4)
+
+- **`utopia bump`** - atomically bump all `utopia_*` deps in
+  `pubspec.yaml` to the latest pub.dev versions. Preserves indentation
+  and surrounding lines (minimal-diff edits). `--dry-run` flag to
+  preview. Useful for keeping the brick template in sync with monorepo
+  releases and for downstream apps tracking utopia.
+- **`utopia init skills` extension** - after writing `.claude/`,
+  doctor-style hints are emitted if `utopia_arch` is missing from
+  pubspec or `utopia_lints` is not extended. Does NOT mutate the
+  pubspec automatically (YAML mutation is fragile; user knows their
+  project better). Suggests running `utopia doctor` for the full
+  audit.
+
+### Re-added (scoped)
+
+- **`utopia mcp` (scoped rebuild)** - MCP server is back, but
+  scoped intentionally to the operational tools that earn their keep
+  on the MCP-vs-Bash test. Tools exposed:
+  - `describe` (wraps `utopia describe`) - structured JSON of project
+    structure
+  - `describe_routes` (wraps `utopia describe --routes-only`)
+  - `doctor` (wraps `utopia doctor`) - findings array agents reason
+    over iteratively
+  - Generators (`create_*`, `add_screen`, `init_skills`) NOT exposed
+    via MCP - documented in README as "use Bash".
+- `dart_mcp` dep back in `pubspec.yaml` (^0.5.0).
+- `mcp` topic back in `pubspec.yaml`.
+
+### Planned (next)
+
+- `utopia describe --diff <ref>` - emit what changed (new screens,
+  global states, route renames) between two git refs.
+- `init skills` extension: add `utopia_arch` + `utopia_hooks` deps
+  and `analysis_options.yaml` (extends utopia_lints) if missing.
+- `utopia bump` - atomic version bump for all `utopia_*` deps.
+
 ## [0.2.0-dev.6] - 2026-05-17
 
 ### Added

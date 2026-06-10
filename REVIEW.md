@@ -40,7 +40,7 @@ task brief and serves as the PR description body.
 | `utopia create flutter_package <name>` | ✓ | Minimal package brick + `--no-skills`/`--no-pub-get`/`--no-git`. |
 | `utopia update` | ✓ | Self-update via `pub_updater`. |
 | `utopia add screen <name>` | ✓ | Real implementation backed by `bricks/screen/` (vendored from `Utopia-USS/utopia-mason`). Flags: `--route`, `--output-directory`. Prints route-registration snippet after generation. |
-| `utopia mcp` | ✓ | MCP server over stdio. Exposes `create_flutter_app`, `create_flutter_package`, `add_screen`. Verified end-to-end against the dart_mcp protocol. |
+| ~~`utopia mcp`~~ | REMOVED | Dropped post-review. Wrapped only one-shot generative tools - failed the MCP-vs-Bash test on all five dimensions (frequency, structured output, persistent state, non-text returns, streaming). Slated for re-introduction once operational tools (`describe`, `doctor`) land. |
 | `.utopia.yaml` config loader | ✓ | `lib/src/config/utopia_config.dart`. Walks parents, reads `org`/`platforms`/`skills`/`lints`. NOTE: loaded but not yet plumbed into command defaults — flagged below. |
 
 ### Out of scope (deferred per task brief)

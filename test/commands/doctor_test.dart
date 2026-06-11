@@ -5,6 +5,8 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 import 'package:utopia_cli/src/command_runner.dart';
+import 'package:utopia_cli/src/commands/doctor/check.dart';
+import 'package:utopia_cli/src/commands/doctor/doctor_command.dart';
 
 void main() {
   group('utopia doctor', () {
@@ -21,7 +23,7 @@ void main() {
     test('reports clean for minimal valid utopia project', () async {
       _writeFile(tempDir, 'pubspec.yaml', _utopiaPubspec);
       _writeFile(tempDir, 'analysis_options.yaml', 'include: package:utopia_lints/lints.yaml');
-      _writeFile(tempDir, '.claude/settings.json', '{"enabledPlugins": ["utopia-hooks"]}');
+      _writeFile(tempDir, '.claude/settings.json', _validClaudeSettings);
       _writeFile(tempDir, 'lib/main.dart', 'void main() {}');
 
       final report = await _runDoctor(tempDir);
@@ -50,6 +52,12 @@ FooState useFooState(BuildContext context) => FooState(context);
       final findings = (report['findings'] as List<dynamic>).cast<Map<String, dynamic>>();
       final ruleIds = findings.map((f) => f['rule_id'] as String).toSet();
       expect(ruleIds, contains('conventions.state_has_buildcontext'));
+
+      // Contract: findings carry the owning package name and a
+      // project-root-relative, forward-slash file path (also on Windows).
+      final finding = findings.firstWhere((f) => f['rule_id'] == 'conventions.state_has_buildcontext');
+      expect(finding['package'], 'smoke_app');
+      expect(finding['file'], 'lib/screen/foo/state/foo_state.dart');
     });
 
     test('catches StatefulWidget screen', () async {
@@ -217,7 +225,7 @@ VideoController useVideoPlayerControllerState() => VideoController();
       // should still produce success on a clean project.
       _writeFile(tempDir, 'pubspec.yaml', _utopiaPubspec);
       _writeFile(tempDir, 'analysis_options.yaml', 'include: package:utopia_lints/lints.yaml');
-      _writeFile(tempDir, '.claude/settings.json', '{"enabledPlugins": ["utopia-hooks"]}');
+      _writeFile(tempDir, '.claude/settings.json', _validClaudeSettings);
       _writeFile(tempDir, 'lib/main.dart', '');
 
       final outFile = File(p.join(tempDir.path, '__doctor.json'));
@@ -228,6 +236,98 @@ VideoController useVideoPlayerControllerState() => VideoController();
       final exitCode = await runner.run(['doctor', '-C', tempDir.path, '-o', outFile.path]);
       expect(exitCode, 0);
     });
+
+    test('flags legacy Claude Code settings schema', () async {
+      _writeFile(tempDir, 'pubspec.yaml', _utopiaPubspec);
+      _writeFile(tempDir, 'analysis_options.yaml', 'include: package:utopia_lints/lints.yaml');
+      _writeFile(tempDir, '.claude/settings.json',
+          '{"marketplaces": [{"source": "github:Utopia-USS/utopia-flutter-skills"}], "enabledPlugins": ["utopia-hooks"]}');
+      _writeFile(tempDir, 'lib/main.dart', '');
+
+      final report = await _runDoctor(tempDir);
+      final findings = (report['findings'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final legacy = findings.singleWhere((f) => f['rule_id'] == 'setup.utopia_hooks_plugin_not_enabled');
+      expect(legacy['severity'], 'warning');
+      expect(legacy['message'], contains('legacy'));
+    });
+
+    test('--fail-on=warning returns non-zero for warnings', () async {
+      _writeFile(tempDir, 'pubspec.yaml', _utopiaPubspec);
+      _writeFile(tempDir, 'analysis_options.yaml', 'include: package:utopia_lints/lints.yaml');
+      _writeFile(tempDir, '.claude/settings.json', '{"enabledPlugins": ["utopia-hooks"]}');
+      _writeFile(tempDir, 'lib/main.dart', '');
+
+      final exitCode = await _runDoctorExit(tempDir, args: ['--fail-on=warning']);
+      expect(exitCode, ExitCode.software.code);
+    });
+
+    test('missing project root returns non-zero', () async {
+      final missing = Directory(p.join(tempDir.path, 'missing'));
+
+      final exitCode = await _runDoctorExit(missing);
+      expect(exitCode, ExitCode.noInput.code);
+    });
+
+    test('crashed checks are represented as error findings', () async {
+      _writeFile(tempDir, 'pubspec.yaml', _utopiaPubspec);
+      _writeFile(tempDir, 'analysis_options.yaml', 'include: package:utopia_lints/lints.yaml');
+      _writeFile(tempDir, '.claude/settings.json', _validClaudeSettings);
+      _writeFile(tempDir, 'lib/main.dart', '');
+
+      final outFile = File(p.join(tempDir.path, '__doctor.json'));
+      final command = DoctorCommand(
+        logger: Logger(level: Level.quiet),
+        checkRegistry: [
+          Check(
+            id: 'setup.crashes',
+            tag: 'setup',
+            description: 'Crashing test check',
+            activationGate: alwaysGate,
+            run: (_, __) => throw StateError('boom'),
+          ),
+        ],
+      )..argResultsOverride =
+          (DoctorCommand(logger: Logger(level: Level.quiet)).argParser.parse(['-C', tempDir.path, '-o', outFile.path]));
+
+      final exitCode = await command.run();
+      expect(exitCode, ExitCode.software.code);
+
+      final report = jsonDecode(outFile.readAsStringSync()) as Map<String, dynamic>;
+      final finding = ((report['findings'] as List<dynamic>).cast<Map<String, dynamic>>()).single;
+      expect(finding['severity'], 'error');
+      expect(finding['context'], containsPair('crashed_check', true));
+    });
+
+    test('--file delegates to shared hooks per-file analysis', () async {
+      _writeFile(tempDir, 'pubspec.yaml', _utopiaHooksPubspec);
+      _writeFile(tempDir, 'lib/screen/foo/state/foo_state.dart', '''
+class FooState {
+  FooState copyWith() => this;
+}
+''');
+
+      final outFile = File(p.join(tempDir.path, '__doctor.json'));
+      final runner = UtopiaCommandRunner(
+        logger: Logger(level: Level.quiet),
+        disableUpdateCheck: true,
+      );
+      final exitCode = await runner.run([
+        'doctor',
+        '-C',
+        tempDir.path,
+        '--file',
+        'lib/screen/foo/state/foo_state.dart',
+        '--fail-on=warning',
+        '-o',
+        outFile.path,
+      ]);
+
+      expect(exitCode, ExitCode.software.code);
+      final report = jsonDecode(outFile.readAsStringSync()) as Map<String, dynamic>;
+      expect(report['active_checks'], contains('hooks.analyze_files'));
+      final findings = (report['findings'] as List<dynamic>).cast<Map<String, dynamic>>();
+      expect(findings.map((finding) => finding['rule_id']), contains('hooks.state_uses_copy_with'));
+    });
   });
 }
 
@@ -237,6 +337,31 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 dependencies:
   utopia_arch: ^0.5.1
+''';
+
+const _utopiaHooksPubspec = '''
+name: smoke_app
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+dependencies:
+  utopia_hooks: ^0.5.1
+''';
+
+const _validClaudeSettings = '''
+{
+  "\$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "utopia-skills": {
+      "source": {
+        "source": "github",
+        "repo": "Utopia-USS/utopia-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "utopia-hooks@utopia-skills": true
+  }
+}
 ''';
 
 void _writeFile(Directory root, String relPath, String content) {
@@ -253,4 +378,13 @@ Future<Map<String, dynamic>> _runDoctor(Directory tempDir, {List<String> args = 
   );
   await runner.run(['doctor', '-C', tempDir.path, '-o', outFile.path, ...args]);
   return jsonDecode(outFile.readAsStringSync()) as Map<String, dynamic>;
+}
+
+Future<int> _runDoctorExit(Directory tempDir, {List<String> args = const []}) {
+  final outFile = File(p.join(tempDir.path, '__doctor.json'));
+  final runner = UtopiaCommandRunner(
+    logger: Logger(level: Level.quiet),
+    disableUpdateCheck: true,
+  );
+  return runner.run(['doctor', '-C', tempDir.path, '-o', outFile.path, ...args]);
 }

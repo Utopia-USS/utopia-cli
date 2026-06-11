@@ -2,9 +2,8 @@
 
 A command-line scaffolder for Flutter projects built on
 [`utopia_arch`](https://pub.dev/packages/utopia_arch) +
-[`utopia_hooks`](https://pub.dev/packages/utopia_hooks), with first-class
-[Claude Code skills](https://github.com/Utopia-USS/utopia-flutter-skills)
-integration baked into every generated project.
+[`utopia_hooks`](https://pub.dev/packages/utopia_hooks), with optional
+Claude Code skills and JSON-first workflows for Codex, shell, and CI agents.
 
 ## Install
 
@@ -23,12 +22,14 @@ utopia --version
 ```bash
 utopia create flutter_app my_app --org io.utopiasoft
 cd my_app
+dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 
 You now have a runnable Flutter app with a sample Screen/State/View
-feature and Claude Code skills pre-registered. Open Claude Code from the
-project and try `/utopia-hooks` to scaffold your next screen.
+feature and Claude Code skills pre-registered. Codex and shell agents can
+use the CLI directly; run `utopia init agents` in existing projects to
+write a provider-neutral `AGENTS.md`.
 
 ## Commands
 
@@ -37,10 +38,12 @@ project and try `/utopia-hooks` to scaffold your next screen.
 | `utopia create flutter_app <name>` | ✓ | Scaffold a Utopia Flutter app. |
 | `utopia create flutter_package <name>` | ✓ | Scaffold a Utopia Flutter package. |
 | `utopia add screen <name>` | ✓ | Scaffold a Screen/State/View triad in an existing project. |
+| `utopia init agents` | ✓ | Write provider-neutral AGENTS.md instructions for Codex, shell, and CI agents. |
 | `utopia init skills` | ✓ | Register the skills marketplace in an existing project. |
 | `utopia describe` | ✓ | Emit project structure (screens, routes, states, services, deps) as JSON for agents. |
+| `utopia hooks analyze` | ✓ | Fast utopia_hooks convention analysis for changed files, one file, or the whole project. |
 | `utopia doctor` | ✓ | Repo-wide audit (setup, conventions, artifacts, imports, structure) with tag-filtered checks. |
-| `utopia mcp` | ✓ | Boot MCP server exposing `describe`, `describe_routes`, `doctor` for AI agents. |
+| `utopia mcp` | ✓ | Boot MCP server exposing `describe`, `describe_routes`, `doctor`, and hooks analysis for AI agents. |
 | `utopia bump` | ✓ | Bump all `utopia_*` deps in pubspec.yaml to latest pub.dev versions. |
 | `utopia update` | ✓ | Self-update from pub.dev. |
 | `utopia --version` | ✓ | Print the CLI version. |
@@ -62,6 +65,7 @@ utopia add screen <name> [options]
 Options:
   -r, --route             Route path served by this screen (default: /<name>)
   -d, --output-directory  Parent directory (default: lib/screen)
+      --json              Emit a machine-readable summary to stdout
 ```
 
 After scaffolding, the CLI prints a snippet you can paste into
@@ -71,11 +75,53 @@ The brick is vendored from
 [`Utopia-USS/utopia-mason`](https://github.com/Utopia-USS/utopia-mason)'s
 `screen` brick and shipped in-repo for atomic versioning.
 
+### `utopia hooks analyze`
+
+Fast convention analysis for `utopia_hooks` projects. This is the canonical
+CLI implementation of the Screen/State/View quality rules that AI-agent
+adapters and CI can share.
+
+```
+utopia hooks analyze [paths...] [options]
+
+Options:
+  -C, --project-root  Project (or workspace) root. Defaults to CWD.
+  -f, --file          File(s) to analyze. Repeat or comma-separate. Positional paths are also accepted.
+      --changed       Analyze changed git files. Default when no target is supplied.
+      --all           Analyze every Dart file under the project root.
+      --format        human | json. Default: human.
+  -o, --output        JSON output file. "-" writes to stdout.
+      --fail-on       error | warning | info | never. Default: warning.
+```
+
+Use `utopia hooks analyze --hook-json` from agent hook adapters,
+`utopia hooks analyze --file <path>` for manual one-file validation,
+`utopia hooks analyze lib/a.dart lib/b.dart` for batch path validation,
+`utopia hooks analyze` for changed-file validation, and
+`utopia hooks analyze --all --format=json` for CI-style scans.
+
+### `utopia init agents`
+
+Writes `AGENTS.md` into the current directory with the canonical CLI
+workflow for provider-neutral agents: inspect with `describe`, generate
+with `add screen --json`, and validate with `doctor`.
+
+This command does not write `.claude/`; Claude Code skills are configured
+separately with `utopia init skills`.
+
+```
+utopia init agents [options]
+
+Options:
+  -d, --output-directory  Project root (default: ".")
+  -f, --force             Overwrite an existing AGENTS.md
+```
+
 ### `utopia init skills`
 
 Writes `.claude/settings.json` + `.claude/README.md` into the current
 directory, pre-registering the
-[`Utopia-USS/utopia-flutter-skills`](https://github.com/Utopia-USS/utopia-flutter-skills)
+[`Utopia-USS/utopia-skills`](https://github.com/Utopia-USS/utopia-skills)
 marketplace and enabling the `utopia-hooks` plugin by default.
 
 Intended for projects created with `--no-skills`, or any existing
@@ -92,7 +138,7 @@ Options:
 ### `utopia describe`
 
 Emit project structure as JSON. Output schema is versioned
-(`schema_version: 1`) and documented in [`docs/describe_schema.md`](docs/describe_schema.md);
+(`schema_version: 1`) and documented in [`doc/describe_schema.md`](doc/describe_schema.md);
 downstream tooling (skills, MCP) pins to it.
 
 ```
@@ -126,9 +172,11 @@ Options:
   -o, --output        Output file. Defaults to `-` (stdout).
       --check=...     Run only these tags / sub-tags / rule IDs.
       --skip=...      Exclude these tags / sub-tags / rule IDs.
+  -f, --file          Run shared per-file hooks analysis for these Dart files.
       --strict        Bypass activation gates; run all checks.
       --[no-]pretty   Pretty-print JSON. Default on.
       --human         Also print a human-readable summary to stderr.
+      --fail-on       error | warning | info | never. Default: error.
 ```
 
 Tag taxonomy (used by `--check` / `--skip`):
@@ -145,6 +193,16 @@ Default behaviour: `artifacts:bloc` runs only if `flutter_bloc` is in
 the pubspec; same for `:riverpod`, `:provider`, `:mobx`, `:getx`.
 `setup` and `conventions` run on any project that declares
 `utopia_arch` or `utopia_hooks`. `--strict` overrides all gates.
+Use `doctor --file <paths> -o -` when an editor hook or agent wants the
+same per-file rule set as `utopia hooks analyze` under the doctor JSON
+contract.
+
+Each finding carries `rule_id`, `severity`, `message`, an optional
+`file`/`line` location, and `package` - the name of the package the
+finding belongs to (matching describe's `packages[].name`; `null` for
+project-root-level findings), so monorepo agents don't have to infer
+the package from path prefixes. All `file` paths in JSON output are
+project-root-relative and always use forward slashes, on Windows too.
 
 ### `utopia mcp` - MCP server for AI agents
 
@@ -164,11 +222,27 @@ Tools registered:
 | `describe` | `utopia describe` | Structured JSON output, called repeatedly across a refactor session |
 | `describe_routes` | `utopia describe --routes-only` | Same; subset for cheap path enumeration |
 | `doctor` | `utopia doctor` | Structured findings array agents reason over (`{file, line, rule_id, severity}`) |
+| `analyze_hooks_files` | `utopia hooks analyze --file` | Per-edit utopia_hooks analysis gate with structured findings |
+| `analyze_hooks_changed` | `utopia hooks analyze` | Changed-file analysis gate for Codex/agent validation before final response |
 
 Generators (`utopia create *`, `utopia add screen`, `utopia init
 skills`) are **not** exposed via MCP - they're one-shot, return only
 "done"/"error", and gain nothing from the MCP transport. Agents
 should invoke them via Bash.
+
+### Agent workflow without Claude Code
+
+Codex and shell/CI agents do not need the Claude Code skills plugin. Use
+the deterministic CLI surfaces directly:
+
+```bash
+utopia describe -o -
+utopia add screen profile --json
+utopia doctor --fail-on=warning --human -o -
+```
+
+Keep JSON on stdout for machine parsing. Human summaries, when enabled,
+go to stderr.
 
 Example: register in your Claude Code config:
 
@@ -230,20 +304,12 @@ my_app/
 The counter feature demonstrates the Utopia pattern in three small
 files — copy it as the starting point for your own screens.
 
-## `.utopia.yaml` (optional)
+## `.utopia.yaml`
 
-You can ship sensible defaults per-project. The CLI walks up from the
-current directory looking for `.utopia.yaml`:
-
-```yaml
-org: io.utopiasoft
-platforms: android,ios
-skills: true
-lints: utopia_lints
-```
-
-When present, these values are used as defaults for the matching `create`
-flags. Nothing is written to `$HOME`.
+The repository contains an experimental config loader, but released
+commands do not currently read `.utopia.yaml`. Prefer explicit flags for
+now; this surface is intentionally not documented as active until a
+command has tests proving it consumes the config.
 
 ## Migrating from `utopia_arch_cli`
 

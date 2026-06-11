@@ -2,7 +2,7 @@
 ///
 /// Regex + path-heuristics first pass. Handles the patterns observed in
 /// the 4 reference projects (habicy, jolly-phonics-apps/classroom,
-/// qbt-black-phone, madrosc-tlumu) - see `docs/describe_schema.md` for
+/// qbt-black-phone, madrosc-tlumu) - see `doc/describe_schema.md` for
 /// the contract.
 ///
 /// Cross-file resolution (e.g. `<Screen>.route` from `app_routing.dart`
@@ -14,6 +14,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import '../../path_utils.dart';
 import 'model.dart';
 
 /// Parses a project at [rootPath] and returns a [Describe].
@@ -162,11 +163,7 @@ class DescribeParser {
     if (!glob.endsWith('/*')) return [];
     final parent = Directory(p.join(root, glob.substring(0, glob.length - 2)));
     if (!parent.existsSync()) return [];
-    return parent
-        .listSync()
-        .whereType<Directory>()
-        .map((d) => d.path)
-        .toList();
+    return parent.listSync().whereType<Directory>().map((d) => d.path).toList();
   }
 
   // --- Package parsing -----------------------------------------------------
@@ -243,7 +240,7 @@ class DescribeParser {
       name: pubspec.name,
       path: _relativeToWorkspace(packagePath, workspaceRoot),
       pubspec: pubspec,
-      appEntrypoint: entrypoint != null ? p.relative(entrypoint, from: packagePath) : null,
+      appEntrypoint: entrypoint != null ? posixRelative(entrypoint, from: packagePath) : null,
       routing: routing,
       screens: patchedScreens,
       globalStates: globalStates,
@@ -254,7 +251,7 @@ class DescribeParser {
 
   String _relativeToWorkspace(String packagePath, String workspaceRoot) {
     if (packagePath == workspaceRoot) return '.';
-    return p.relative(packagePath, from: workspaceRoot);
+    return posixRelative(packagePath, from: workspaceRoot);
   }
 
   Pubspec _parsePubspec(File f) {
@@ -349,8 +346,7 @@ class DescribeParser {
 
   /// Regex: class declaration matching the file's expected class name.
   static final _classDeclRegExp = RegExp(r'class\s+(\w+)\s+extends\s+([\w<>.,\s]+?)\s*\{', multiLine: true);
-  static final _routeConstRegExp =
-      RegExp(r'''static\s+const\s+route\s*=\s*['"]([^'"]+)['"]''', multiLine: true);
+  static final _routeConstRegExp = RegExp(r'''static\s+const\s+route\s*=\s*['"]([^'"]+)['"]''', multiLine: true);
   static final _routePageAnnotRegExp = RegExp(r'@RoutePage\(\)', multiLine: true);
   static final _routeConfigRegExp = RegExp(r'static\s+final\s+routeConfig\s*=\s*([\w.<>(),\s_]+);', multiLine: true);
 
@@ -361,7 +357,7 @@ class DescribeParser {
   static const _nonScreenLibDirs = ['common', 'util', 'utils', 'widget', 'widgets', 'core'];
 
   Screen? _parseScreenFile(File file, Directory libDir, String packagePath, List<DiscoveryNote> notes) {
-    final relPath = p.relative(file.path, from: packagePath);
+    final relPath = posixRelative(file.path, from: packagePath);
 
     // Skip files in known non-screen directories.
     final segments = p.split(relPath);
@@ -519,7 +515,7 @@ class DescribeParser {
       final classMatch = _stateClassRegExp.firstMatch(content);
       if (hookMatch == null && classMatch == null) continue;
       out.add(ScreenState(
-        file: p.relative(f.path, from: packagePath),
+        file: posixRelative(f.path, from: packagePath),
         className: hookMatch?.group(1) ?? classMatch?.group(1) ?? 'Unknown',
         hook: hookMatch?.group(2) ?? 'use${classMatch?.group(1) ?? 'Unknown'}',
       ));
@@ -537,7 +533,7 @@ class DescribeParser {
       final classMatch = _classDeclRegExp.firstMatch(content);
       if (classMatch == null) continue;
       out.add(ScreenView(
-        file: p.relative(f.path, from: packagePath),
+        file: posixRelative(f.path, from: packagePath),
         className: classMatch.group(1) ?? 'Unknown',
       ));
     }
@@ -562,7 +558,7 @@ class DescribeParser {
       if (_routeMapRegExp.hasMatch(content)) {
         return Routing(
           strategy: RoutingStrategy.static_const_aggregator,
-          configFile: p.relative(candidate.path, from: libDir.parent.path),
+          configFile: posixRelative(candidate.path, from: libDir.parent.path),
           initialRoute: _extractInitialRoute(content, screens),
           routeCount: screens.where((s) => s.route != null).length,
         );
@@ -579,13 +575,13 @@ class DescribeParser {
             kind: DiscoveryNoteKind.auto_route_gen_missing,
             level: DiscoveryLevel.warning,
             message: 'auto_route config detected but generated file not found',
-            context: {'expected': p.relative(genFile.path, from: libDir.parent.path)},
+            context: {'expected': posixRelative(genFile.path, from: libDir.parent.path)},
           ));
         }
         return Routing(
           strategy: RoutingStrategy.auto_route,
-          configFile: p.relative(main.path, from: libDir.parent.path),
-          autoRouteGenFile: genFile.existsSync() ? p.relative(genFile.path, from: libDir.parent.path) : null,
+          configFile: posixRelative(main.path, from: libDir.parent.path),
+          autoRouteGenFile: genFile.existsSync() ? posixRelative(genFile.path, from: libDir.parent.path) : null,
           routeCount: screens.where((s) => s.kind == ScreenKind.auto_route_page).length,
         );
       }
@@ -597,7 +593,7 @@ class DescribeParser {
       if (_goRouterCtorRegExp.hasMatch(f.readAsStringSync())) {
         return Routing(
           strategy: RoutingStrategy.go_router,
-          configFile: p.relative(f.path, from: libDir.parent.path),
+          configFile: posixRelative(f.path, from: libDir.parent.path),
           routeCount: 0,
         );
       }
@@ -668,8 +664,7 @@ class DescribeParser {
   List<GlobalState> _findGlobalStates(Directory libDir, String packageName, String packagePath) {
     final providerMapFile = _findProviderMapFile(libDir);
     final providerContent = providerMapFile?.readAsStringSync() ?? '';
-    final registeredIn =
-        providerMapFile != null ? p.relative(providerMapFile.path, from: packagePath) : null;
+    final registeredIn = providerMapFile != null ? posixRelative(providerMapFile.path, from: packagePath) : null;
 
     final byFile = <String, GlobalState>{};
 
@@ -714,7 +709,7 @@ class DescribeParser {
         if (!isRegistered) return;
       }
 
-      final rel = p.relative(f.path, from: packagePath);
+      final rel = posixRelative(f.path, from: packagePath);
       byFile[rel] = GlobalState(
         name: className,
         file: rel,
@@ -798,8 +793,8 @@ class DescribeParser {
       }
       out.add(Service(
         name: name,
-        file: p.relative(f.path, from: libDir.parent.path),
-        registeredIn: injectorFile != null ? p.relative(injectorFile.path, from: libDir.parent.path) : null,
+        file: posixRelative(f.path, from: libDir.parent.path),
+        registeredIn: injectorFile != null ? posixRelative(injectorFile.path, from: libDir.parent.path) : null,
         serviceRegistrationKind: kind,
       ));
     }
@@ -846,7 +841,7 @@ class DescribeParser {
             out.add(ForeignArtifact(
               framework: pat.framework,
               pattern: pat.regex,
-              file: p.relative(f.path, from: libDir.parent.path),
+              file: posixRelative(f.path, from: libDir.parent.path),
               line: i + 1,
               confidence: Confidence.high,
             ));

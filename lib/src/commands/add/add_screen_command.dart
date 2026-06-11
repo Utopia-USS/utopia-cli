@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -7,6 +8,7 @@ import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import '../../generators/brick_locator.dart';
+import '../../path_utils.dart';
 
 final _packageNameRegExp = RegExp(r'^[a-z_][a-z0-9_]*$');
 
@@ -35,6 +37,11 @@ class AddScreenCommand extends Command<int> {
         abbr: 'd',
         help: 'Parent directory for the new screen folder.',
         defaultsTo: 'lib/screen',
+      )
+      ..addFlag(
+        'json',
+        negatable: false,
+        help: 'Emit a machine-readable summary to stdout.',
       );
   }
 
@@ -73,11 +80,17 @@ class AddScreenCommand extends Command<int> {
 
   String get route => (argResults['route'] as String?) ?? '/$screenName';
   String get outputParent => argResults['output-directory'] as String? ?? 'lib/screen';
+  bool get json => argResults['json'] as bool? ?? false;
 
   @override
   Future<int> run() async {
     final name = screenName;
     final target = Directory(p.join(outputParent, name));
+    final projectRoot = _findProjectRoot(Directory(outputParent));
+    if (projectRoot == null || !_isFlutterProject(projectRoot)) {
+      _logger.err('`utopia add screen` must be run inside a Flutter project.');
+      return ExitCode.noInput.code;
+    }
 
     if (target.existsSync() && target.listSync().isNotEmpty) {
       _logger.err('Directory "${target.path}" already exists and is not empty.');
@@ -87,16 +100,68 @@ class AddScreenCommand extends Command<int> {
     final brickPath = _brickLocator.locate('screen');
     final generator = await _generatorFromBrick(Brick.path(brickPath));
 
-    final progress = _logger.progress('Adding screen "$name"');
+    final progress = json ? null : _logger.progress('Adding screen "$name"');
     final files = await generator.generate(
       DirectoryGeneratorTarget(target),
       vars: {'name': name, 'route': route},
-      logger: _logger,
+      logger: json ? Logger(level: Level.quiet) : _logger,
     );
-    progress.complete('Generated ${files.length} file(s) at ${target.path}');
+    progress?.complete('Generated ${files.length} file(s) at ${target.path}');
 
-    _printRegistrationHint(name: name, target: target);
+    if (json) {
+      _printJsonSummary(
+        name: name,
+        target: target,
+        projectRoot: projectRoot,
+        files: files,
+      );
+    } else {
+      _printRegistrationHint(name: name, target: target);
+    }
     return ExitCode.success.code;
+  }
+
+  Directory? _findProjectRoot(Directory outputParent) {
+    var cursor = outputParent.isAbsolute ? outputParent.absolute : Directory.current;
+    while (true) {
+      if (File(p.join(cursor.path, 'pubspec.yaml')).existsSync()) return cursor;
+      final parent = cursor.parent;
+      if (parent.path == cursor.path) return null;
+      cursor = parent;
+    }
+  }
+
+  bool _isFlutterProject(Directory projectRoot) {
+    final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
+    if (!pubspec.existsSync()) return false;
+    final content = pubspec.readAsStringSync();
+    return content.contains('flutter:') || content.contains('sdk: flutter');
+  }
+
+  void _printJsonSummary({
+    required String name,
+    required Directory target,
+    required Directory projectRoot,
+    required List<GeneratedFile> files,
+  }) {
+    final relativeTarget = posixRelative(target.path, from: projectRoot.path);
+    final payload = {
+      'schema_version': 1,
+      'screen': name,
+      'route': route,
+      'target': relativeTarget,
+      'files': files
+          .map((file) => {
+                'path': posixRelative(file.path, from: projectRoot.path),
+                'status': file.status.name,
+              })
+          .toList(),
+      'route_registered': false,
+      'warnings': [
+        'Route registration was not modified. Register ${_pascalCase(name)}Screen.route in lib/app/app_routing.dart.',
+      ],
+    };
+    stdout.writeln(jsonEncode(payload));
   }
 
   void _printRegistrationHint({required String name, required Directory target}) {

@@ -11,7 +11,7 @@ import 'package:utopia_cli/src/command_runner.dart';
 /// These tests build a tiny on-disk Flutter-shaped project per case
 /// and assert the schema's structural invariants. Real-world projects
 /// (habicy, jolly, qbt, madrosc) are covered manually - see
-/// `docs/describe_schema.md`.
+/// `doc/describe_schema.md`.
 void main() {
   group('utopia describe', () {
     late Directory tempDir;
@@ -270,8 +270,7 @@ ColorState useColorState() => ColorState();
       final globals = (json['packages'][0]['global_states'] as List<dynamic>).cast<Map<String, dynamic>>();
       final names = globals.map((g) => g['name'] as String).toSet();
       expect(names, contains('ColorState'), reason: 'no-arg conventional state is a plausible global');
-      expect(names, isNot(contains('DealState')),
-          reason: 'parameterized unregistered state is a helper, not a global');
+      expect(names, isNot(contains('DealState')), reason: 'parameterized unregistered state is a helper, not a global');
     });
 
     test('emits error note + non-zero exit on missing project root', () async {
@@ -310,7 +309,9 @@ class FooScreen extends HookWidget {
       final pkg = packages.first as Map<String, dynamic>;
       expect(pkg['routes'], isA<List<dynamic>>());
       expect((pkg['routes'] as List<dynamic>).length, 1);
-      expect((pkg['routes'] as List).first['path'], '/foo');
+      final route = (pkg['routes'] as List).first as Map<String, dynamic>;
+      expect(route['path'], '/foo');
+      expect(route['confidence'], 'high');
     });
   });
 }

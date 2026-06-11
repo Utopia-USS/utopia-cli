@@ -62,6 +62,7 @@ class Finding {
     this.subTag,
     required this.severity,
     required this.message,
+    this.package,
     this.file,
     this.line,
     this.fix,
@@ -80,6 +81,10 @@ class Finding {
   final Severity severity;
   final String message;
 
+  /// Name of the package the finding belongs to (matches describe's
+  /// `packages[].name`). Null for project-root-level findings.
+  final String? package;
+
   /// Path relative to project root.
   final String? file;
   final int? line;
@@ -96,6 +101,7 @@ class Finding {
         'sub_tag': subTag,
         'severity': severity.name,
         'message': message,
+        'package': package,
         'file': file,
         'line': line,
         'fix': fix,

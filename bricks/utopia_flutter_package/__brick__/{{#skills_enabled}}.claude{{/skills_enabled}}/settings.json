@@ -1,12 +1,15 @@
 {
-  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/settings.schema.json",
+  "$schema": "{{{claude_settings_schema_url}}}",
   "permissions": {},
-  "marketplaces": [
-    {
-      "source": "github:Utopia-USS/utopia-flutter-skills"
+  "extraKnownMarketplaces": {
+    "{{{skills_marketplace_name}}}": {
+      "source": {
+        "source": "github",
+        "repo": "{{{skills_repo_slug}}}"
+      }
     }
-  ],
-  "enabledPlugins": [
-    "utopia-hooks"
-  ]
+  },
+  "enabledPlugins": {
+    "{{{utopia_hooks_plugin_key}}}": true
+  }
 }

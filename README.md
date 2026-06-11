@@ -121,7 +121,7 @@ Options:
 
 Writes `.claude/settings.json` + `.claude/README.md` into the current
 directory, pre-registering the
-[`Utopia-USS/utopia-skills`](https://github.com/Utopia-USS/utopia-skills)
+[`Utopia-USS/utopia-flutter-skills`](https://github.com/Utopia-USS/utopia-flutter-skills)
 marketplace and enabling the `utopia-hooks` plugin by default.
 
 Intended for projects created with `--no-skills`, or any existing

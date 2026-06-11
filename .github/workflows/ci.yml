@@ -8,9 +8,19 @@ on:
 
 jobs:
   test:
-    name: analyze + test
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: analyze + test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    env:
+      # One explicit pub cache path for both OSes so the cache step below
+      # works without per-OS path juggling.
+      PUB_CACHE: ${{ runner.temp }}/pub-cache
 
     steps:
       - uses: actions/checkout@v4
@@ -22,13 +32,14 @@ jobs:
       - name: Cache pub
         uses: actions/cache@v4
         with:
-          path: ~/.pub-cache
+          path: ${{ runner.temp }}/pub-cache
           key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
       - run: dart pub get
 
       - name: Verify version.dart matches pubspec.yaml
+        shell: bash
         run: |
           dart run tool/sync_version.dart
           if [ -n "$(git status --porcelain lib/src/version.dart)" ]; then
@@ -38,13 +49,43 @@ jobs:
             exit 1
           fi
 
-      # Skip bricks/ — files contain {{mustache}} placeholders that are
+      # Skip bricks/ - files contain {{mustache}} placeholders that are
       # not valid Dart and would error the formatter.
       - run: dart format --output=none --set-exit-if-changed --line-length=120 bin lib test tool
 
       - run: dart analyze --fatal-infos --fatal-warnings
 
       - run: dart test --reporter=expanded
+
+      # Dogfood: run the real CLI doctor end to end against a throwaway
+      # utopia-stack project. Asserts both gate directions - warnings pass
+      # the default gate, --fail-on=warning turns them into a failure.
+      - name: Doctor smoke test
+        shell: bash
+        run: |
+          SAMPLE=.doctor-smoke
+          mkdir -p "$SAMPLE/lib"
+          cat > "$SAMPLE/pubspec.yaml" <<'EOF'
+          name: doctor_smoke_app
+          environment:
+            sdk: ^3.5.0
+          dependencies:
+            flutter:
+              sdk: flutter
+            utopia_hooks: ^0.5.0
+          EOF
+          echo 'void main() {}' > "$SAMPLE/lib/main.dart"
+
+          # No analysis_options.yaml -> setup.lints_not_extended warning.
+          # Default gate (--fail-on=error) must still pass.
+          dart run bin/utopia.dart doctor -C "$SAMPLE" --human -o "$SAMPLE/report.json"
+          jq -e '.schema_version == 1 and .summary.warning_count >= 1' "$SAMPLE/report.json"
+
+          # The same project must fail a stricter gate.
+          if dart run bin/utopia.dart doctor -C "$SAMPLE" --fail-on=warning -o -; then
+            echo "::error::doctor --fail-on=warning unexpectedly passed"
+            exit 1
+          fi
 
   publish-dry-run:
     name: pub publish --dry-run

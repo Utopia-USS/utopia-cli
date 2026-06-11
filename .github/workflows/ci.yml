@@ -17,17 +17,19 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
 
-    env:
-      # One explicit pub cache path for both OSes so the cache step below
-      # works without per-OS path juggling.
-      PUB_CACHE: ${{ runner.temp }}/pub-cache
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: stable
+
+      # One explicit pub cache path for both OSes so the cache step below
+      # works without per-OS path juggling. (`runner` context is not
+      # allowed in job-level env, hence GITHUB_ENV.)
+      - name: Set pub cache path
+        shell: bash
+        run: echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
 
       - name: Cache pub
         uses: actions/cache@v4

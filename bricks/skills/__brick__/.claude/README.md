@@ -1,6 +1,6 @@
 # Claude Code skills
 
-This project has [`utopia-skills`](https://github.com/Utopia-USS/utopia-skills)
+This project has [`utopia-flutter-skills`](https://github.com/Utopia-USS/utopia-flutter-skills)
 registered as a Claude Code marketplace.
 
 ## What's included
@@ -28,7 +28,7 @@ registered as a Claude Code marketplace.
 If the marketplace did not auto-register on first run, register it manually:
 
 ```
-/plugin marketplace add Utopia-USS/utopia-skills
+/plugin marketplace add Utopia-USS/utopia-flutter-skills
 /plugin enable utopia-hooks
 ```
 

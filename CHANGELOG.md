@@ -147,7 +147,7 @@ two independent verification passes:
 
 - `utopia init skills` — writes `.claude/settings.json` and
   `.claude/README.md` into the current directory, registering the
-  `Utopia-USS/utopia-skills` marketplace and enabling the
+  `Utopia-USS/utopia-flutter-skills` marketplace and enabling the
   `utopia-hooks` plugin. Intended for projects created with
   `--no-skills`, or any existing Flutter project that wants to opt in.
   Flags: `--output-directory`/`-d` (default `.`), `--force`/`-f`
@@ -268,7 +268,7 @@ two independent verification passes:
 - Sample `Counter` Screen/State/View feature in the generated app,
   demonstrating the Utopia pattern.
 - `.claude/` directory generated in every new project, registering the
-  [`Utopia-USS/utopia-skills`](https://github.com/Utopia-USS/utopia-skills)
+  [`Utopia-USS/utopia-flutter-skills`](https://github.com/Utopia-USS/utopia-flutter-skills)
   marketplace and enabling `utopia-hooks` by default. Opt out with
   `--no-skills`.
 - `DEVELOPMENT.md` generated in every project with a Screen/State/View

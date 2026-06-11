@@ -351,15 +351,15 @@ const _validClaudeSettings = '''
 {
   "\$schema": "https://json.schemastore.org/claude-code-settings.json",
   "extraKnownMarketplaces": {
-    "utopia-skills": {
+    "utopia-flutter-skills": {
       "source": {
         "source": "github",
-        "repo": "Utopia-USS/utopia-skills"
+        "repo": "Utopia-USS/utopia-flutter-skills"
       }
     }
   },
   "enabledPlugins": {
-    "utopia-hooks@utopia-skills": true
+    "utopia-hooks@utopia-flutter-skills": true
   }
 }
 ''';

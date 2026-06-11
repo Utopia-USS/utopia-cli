@@ -8,14 +8,14 @@ import 'version.dart';
 
 const _utopiaUrl = 'https://utopiasoft.io';
 const _cliRepoUrl = 'https://github.com/Utopia-USS/utopia-cli';
-const _skillsRepoSlug = 'Utopia-USS/utopia-skills';
+const _skillsRepoSlug = 'Utopia-USS/utopia-flutter-skills';
 const _skillsRepoUrl = 'https://github.com/$_skillsRepoSlug';
 const _utopiaHooksUrl = 'https://pub.dev/packages/utopia_hooks';
 const _utopiaArchUrl = 'https://pub.dev/packages/utopia_arch';
 
 /// Marketplace identifier for the Utopia Flutter Skills marketplace.
 const utopiaSkillsMarketplaceSlug = _skillsRepoSlug;
-const utopiaSkillsMarketplaceName = 'utopia-skills';
+const utopiaSkillsMarketplaceName = 'utopia-flutter-skills';
 const utopiaHooksPluginName = 'utopia-hooks';
 const utopiaHooksPluginKey = '$utopiaHooksPluginName@$utopiaSkillsMarketplaceName';
 const claudeSettingsSchemaUrl = 'https://json.schemastore.org/claude-code-settings.json';

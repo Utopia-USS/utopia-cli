@@ -13,7 +13,7 @@ import '../../strings.dart' as strings;
 typedef MasonGeneratorFromBrick = Future<MasonGenerator> Function(Brick);
 
 /// `utopia init skills` — writes a `.claude/` directory into the current
-/// project that pre-registers the Utopia-USS/utopia-skills
+/// project that pre-registers the Utopia-USS/utopia-flutter-skills
 /// marketplace and enables the `utopia-hooks` plugin.
 ///
 /// Intended for projects created with `utopia create flutter_app --no-skills`,

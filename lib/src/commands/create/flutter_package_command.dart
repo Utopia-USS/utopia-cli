@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../strings.dart' as strings;
 import 'create_subcommand.dart';
 
 /// `utopia create flutter_package <name>` — scaffolds a Flutter library.
@@ -8,6 +9,7 @@ class CreateFlutterPackageCommand extends CreateSubCommand {
     required super.logger,
     super.brickLocator,
     super.generatorFromBrick,
+    super.shellRunner,
   });
 
   @override
@@ -35,6 +37,10 @@ class CreateFlutterPackageCommand extends CreateSubCommand {
       'package_name': projectName,
       'description': description,
       'skills_enabled': skillsEnabled,
+      'claude_settings_schema_url': strings.claudeSettingsSchemaUrl,
+      'skills_marketplace_name': strings.utopiaSkillsMarketplaceName,
+      'skills_repo_slug': strings.utopiaSkillsMarketplaceSlug,
+      'utopia_hooks_plugin_key': strings.utopiaHooksPluginKey,
       'year': DateTime.now().year.toString(),
     };
   }

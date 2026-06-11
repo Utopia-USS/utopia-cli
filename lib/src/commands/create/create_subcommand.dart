@@ -15,6 +15,11 @@ final _orgNameRegExp = RegExp(r'^[a-zA-Z][\w-]*(\.[a-zA-Z][\w-]*)+$');
 
 /// Test seam — `MasonGenerator.fromBrick`.
 typedef MasonGeneratorFromBrick = Future<MasonGenerator> Function(Brick);
+typedef ShellRunner = Future<ProcessResult> Function(
+  String executable,
+  List<String> args, {
+  required String workingDirectory,
+});
 
 /// Base for `utopia create <thing>` subcommands. Owns positional name
 /// parsing, common flags, brick resolution, and the generation lifecycle.
@@ -23,8 +28,10 @@ abstract class CreateSubCommand extends Command<int> {
     required this.logger,
     BrickLocator? brickLocator,
     MasonGeneratorFromBrick? generatorFromBrick,
+    ShellRunner? shellRunner,
   })  : _brickLocator = brickLocator ?? const BrickLocator(),
-        _generatorFromBrick = generatorFromBrick ?? MasonGenerator.fromBrick {
+        _generatorFromBrick = generatorFromBrick ?? MasonGenerator.fromBrick,
+        _shellRunner = shellRunner ?? _defaultShellRunner {
     argParser
       ..addOption(
         'output-directory',
@@ -56,6 +63,7 @@ abstract class CreateSubCommand extends Command<int> {
   final Logger logger;
   final BrickLocator _brickLocator;
   final MasonGeneratorFromBrick _generatorFromBrick;
+  final ShellRunner _shellRunner;
 
   @visibleForTesting
   ArgResults? argResultsOverride;
@@ -138,8 +146,8 @@ abstract class CreateSubCommand extends Command<int> {
     return ExitCode.success.code;
   }
 
-  /// Helper for subclasses — runs a shell command, surfaces failures via
-  /// the logger but does not throw (post-gen steps are best-effort).
+  /// Helper for subclasses — runs a required shell command. Failure throws so
+  /// command surfaces and CI get a non-zero exit code.
   @protected
   Future<void> runShell(
     String executable,
@@ -150,20 +158,36 @@ abstract class CreateSubCommand extends Command<int> {
   }) async {
     final progress = logger.progress(successMessage);
     try {
-      final result = await Process.run(
+      final result = await _shellRunner(
         executable,
         args,
         workingDirectory: workingDir.path,
-        runInShell: true,
       );
       if (result.exitCode == 0) {
         progress.complete(successMessage);
       } else {
         progress.fail('$failurePrefix (${result.exitCode})');
-        logger.detail((result.stderr as String?) ?? '');
+        final stderr = result.stderr?.toString() ?? '';
+        if (stderr.isNotEmpty) logger.detail(stderr);
+        throw ShellCommandException(
+          executable: executable,
+          args: args,
+          workingDirectory: workingDir.path,
+          exitCode: result.exitCode,
+          stderr: stderr,
+          failurePrefix: failurePrefix,
+        );
       }
     } on ProcessException catch (e) {
       progress.fail('$failurePrefix: ${e.message}');
+      throw ShellCommandException(
+        executable: executable,
+        args: args,
+        workingDirectory: workingDir.path,
+        exitCode: ExitCode.unavailable.code,
+        stderr: e.message,
+        failurePrefix: failurePrefix,
+      );
     }
   }
 
@@ -180,5 +204,43 @@ abstract class CreateSubCommand extends Command<int> {
   String validatedOrg(String value) {
     _validateOrgName(value);
     return value;
+  }
+}
+
+Future<ProcessResult> _defaultShellRunner(
+  String executable,
+  List<String> args, {
+  required String workingDirectory,
+}) {
+  return Process.run(
+    executable,
+    args,
+    workingDirectory: workingDirectory,
+    runInShell: true,
+  );
+}
+
+class ShellCommandException implements Exception {
+  const ShellCommandException({
+    required this.executable,
+    required this.args,
+    required this.workingDirectory,
+    required this.exitCode,
+    required this.stderr,
+    required this.failurePrefix,
+  });
+
+  final String executable;
+  final List<String> args;
+  final String workingDirectory;
+  final int exitCode;
+  final String stderr;
+  final String failurePrefix;
+
+  @override
+  String toString() {
+    final command = [executable, ...args].join(' ');
+    final details = stderr.isEmpty ? '' : ': $stderr';
+    return '$failurePrefix ($exitCode) while running `$command` in $workingDirectory$details';
   }
 }

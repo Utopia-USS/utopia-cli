@@ -7,14 +7,15 @@ import 'package:dart_mcp/stdio.dart';
 import 'package:meta/meta.dart';
 
 import '../describe/parser.dart';
-import '../doctor/check.dart';
+import '../describe/routes_view.dart';
 import '../doctor/checks.dart' as doctor_checks;
-import '../doctor/model.dart' as doctor_model;
+import '../doctor/report_builder.dart';
+import '../hooks/hooks_analyze_engine.dart';
 import '../../version.dart';
 
 /// MCP server exposing `utopia describe` and `utopia doctor` as MCP tools.
 ///
-/// **Scoping principle (see `docs/describe_schema.md` and the plan):**
+/// **Scoping principle (see `doc/describe_schema.md` and the plan):**
 /// Only operational tools that earn their keep on the MCP-vs-Bash test
 /// are exposed - i.e. tools called multiple times per session with
 /// structured output the agent reasons over. One-shot generators
@@ -24,6 +25,8 @@ import '../../version.dart';
 /// - `describe` - full project structure as JSON
 /// - `describe_routes` - just the routes view
 /// - `doctor` - repo-wide audit with tag-based selection
+/// - `analyze_hooks_files` - fast utopia_hooks analysis gate for files
+/// - `analyze_hooks_changed` - fast utopia_hooks analysis gate for changed files
 base class UtopiaMcpServer extends MCPServer with ToolsSupport {
   UtopiaMcpServer(super.channel)
       : super.fromStreamChannel(
@@ -45,14 +48,15 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
     registerTool(_describeTool, _runDescribe);
     registerTool(_describeRoutesTool, _runDescribeRoutes);
     registerTool(_doctorTool, _runDoctor);
+    registerTool(_analyzeHooksFilesTool, _runAnalyzeHooksFiles);
+    registerTool(_analyzeHooksChangedTool, _runAnalyzeHooksChanged);
   }
 
   // --- describe ------------------------------------------------------------
 
   final _describeTool = Tool(
     name: 'describe',
-    description:
-        'Emit project structure (screens, routes, global states, services, '
+    description: 'Emit project structure (screens, routes, global states, services, '
         'deps, foreign-framework artefacts) as versioned JSON. Use to learn '
         'what exists in a project in one call instead of crawling files.',
     inputSchema: Schema.object(
@@ -97,27 +101,7 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
     final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
     try {
       final describe = const DescribeParser().parse(root);
-      final view = <String, dynamic>{
-        'schema_version': describe.schemaVersion,
-        'packages': describe.packages.map((pkg) {
-          final routes = pkg.screens
-              .where((s) => s.route != null)
-              .map((s) => {
-                    'screen': s.name,
-                    'kind': s.kind.name,
-                    'file': s.file,
-                    'path': s.route!.path,
-                    'config_builder': s.route!.configBuilder,
-                    'confidence': s.route!.confidence.name,
-                  })
-              .toList();
-          return {
-            'name': pkg.name,
-            'routing': pkg.routing?.toJson(),
-            'routes': routes,
-          };
-        }).toList(),
-      };
+      final view = describeRoutesView(describe);
       final json = const JsonEncoder.withIndent('  ').convert(view);
       return CallToolResult(content: [TextContent(text: json)]);
     } on Object catch (e, st) {
@@ -132,8 +116,7 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
 
   final _doctorTool = Tool(
     name: 'doctor',
-    description:
-        'Repo-wide audit. Returns structured findings { rule_id, tag, '
+    description: 'Repo-wide audit. Returns structured findings { rule_id, tag, '
         'severity, file, line, message, fix } across setup / conventions / '
         'artifacts / imports / structure tags. Use after refactors or '
         'before commit to catch drift.',
@@ -143,8 +126,7 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
           description: 'Project (or workspace) root. Defaults to CWD if omitted.',
         ),
         'check': Schema.list(
-          description:
-              'Tags / sub-tags / rule IDs to run ONLY (allowlist). E.g. '
+          description: 'Tags / sub-tags / rule IDs to run ONLY (allowlist). E.g. '
               '["setup", "artifacts:bloc"]. If omitted, smart default activates '
               'checks based on pubspec deps.',
           items: Schema.string(),
@@ -162,28 +144,25 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
 
   FutureOr<CallToolResult> _runDoctor(CallToolRequest request) async {
     final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
+    if (!io.Directory(root).existsSync()) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'doctor failed: project root not found: $root')],
+      );
+    }
     final include = _stringListArg(request, 'check') ?? const <String>[];
     final exclude = _stringListArg(request, 'skip') ?? const <String>[];
     final strict = (request.arguments?['strict'] as bool?) ?? false;
 
     try {
       final describe = const DescribeParser().parse(root);
-      final selection = CheckSelection(include: include, exclude: exclude, strict: strict);
-      final activeChecks = doctor_checks.allChecks.where((c) => selection.shouldRun(c, describe)).toList();
-      final findings = <doctor_model.Finding>[];
-      for (final check in activeChecks) {
-        findings.addAll(check.run(describe, root));
-      }
-      final report = doctor_model.DoctorReport(
-        schemaVersion: 1,
+      final report = buildDoctorReport(
+        describe: describe,
         projectRoot: root,
-        activeChecks: activeChecks.map((c) => c.id).toList(),
-        findings: findings,
-        summary: doctor_model.DoctorSummary(
-          errorCount: findings.where((f) => f.severity == doctor_model.Severity.error).length,
-          warningCount: findings.where((f) => f.severity == doctor_model.Severity.warning).length,
-          infoCount: findings.where((f) => f.severity == doctor_model.Severity.info).length,
-        ),
+        registry: doctor_checks.allChecks,
+        include: include,
+        exclude: exclude,
+        strict: strict,
       );
       final json = const JsonEncoder.withIndent('  ').convert(report.toJson());
       return CallToolResult(content: [TextContent(text: json)]);
@@ -191,6 +170,79 @@ instead. See the project's README for rationale (MCP-vs-Bash test).
       return CallToolResult(
         isError: true,
         content: [TextContent(text: 'doctor failed: $e\n$st')],
+      );
+    }
+  }
+
+  // --- analyze_hooks --------------------------------------------------------
+
+  final _analyzeHooksFilesTool = Tool(
+    name: 'analyze_hooks_files',
+    description: 'Fast utopia_hooks convention analysis for Dart files. Returns the same '
+        'structured report as `utopia hooks analyze --file ... --format=json`.',
+    inputSchema: Schema.object(
+      properties: {
+        'project_root': Schema.string(
+          description: 'Project (or workspace) root. Defaults to CWD if omitted.',
+        ),
+        'files': Schema.list(
+          description: 'Dart file paths, absolute or relative to project_root.',
+          items: Schema.string(),
+        ),
+      },
+    ),
+  );
+
+  FutureOr<CallToolResult> _runAnalyzeHooksFiles(CallToolRequest request) async {
+    final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
+    final files = _stringListArg(request, 'files');
+    if (files == null || files.isEmpty) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'analyze_hooks_files failed: missing required argument `files`')],
+      );
+    }
+
+    try {
+      final report = const HooksAnalyzeEngine().analyzeFiles(
+        projectRoot: root,
+        files: files,
+      );
+      final json = const JsonEncoder.withIndent('  ').convert(report.toJson());
+      return CallToolResult(content: [TextContent(text: json)]);
+    } on Object catch (e, st) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'analyze_hooks_files failed: $e\n$st')],
+      );
+    }
+  }
+
+  final _analyzeHooksChangedTool = Tool(
+    name: 'analyze_hooks_changed',
+    description: 'Fast utopia_hooks convention analysis for changed git Dart files. Returns '
+        'the same structured report as `utopia hooks analyze --format=json`.',
+    inputSchema: Schema.object(
+      properties: {
+        'project_root': Schema.string(
+          description: 'Project (or workspace) root. Defaults to CWD if omitted.',
+        ),
+      },
+    ),
+  );
+
+  FutureOr<CallToolResult> _runAnalyzeHooksChanged(CallToolRequest request) async {
+    final root = _stringArg(request, 'project_root') ?? io.Directory.current.path;
+    try {
+      final engine = const HooksAnalyzeEngine();
+      final files = await engine.changedFiles(projectRoot: root);
+      final report = engine.analyzeFiles(projectRoot: root, files: files);
+      final json = const JsonEncoder.withIndent('  ').convert(report.toJson());
+      return CallToolResult(content: [TextContent(text: json)]);
+    } on Object catch (e, st) {
+      return CallToolResult(
+        isError: true,
+        content: [TextContent(text: 'analyze_hooks_changed failed: $e\n$st')],
       );
     }
   }

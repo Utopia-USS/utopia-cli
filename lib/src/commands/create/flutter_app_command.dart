@@ -11,6 +11,7 @@ class CreateFlutterAppCommand extends CreateSubCommand {
     required super.logger,
     super.brickLocator,
     super.generatorFromBrick,
+    super.shellRunner,
   }) {
     argParser
       ..addOption(
@@ -64,6 +65,10 @@ class CreateFlutterAppCommand extends CreateSubCommand {
       'platforms': platforms,
       'application_id': applicationId,
       'skills_enabled': skillsEnabled,
+      'claude_settings_schema_url': strings.claudeSettingsSchemaUrl,
+      'skills_marketplace_name': strings.utopiaSkillsMarketplaceName,
+      'skills_repo_slug': strings.utopiaSkillsMarketplaceSlug,
+      'utopia_hooks_plugin_key': strings.utopiaHooksPluginKey,
       'year': DateTime.now().year.toString(),
     };
   }

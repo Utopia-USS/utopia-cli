@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 import 'package:utopia_cli/src/generators/brick_locator.dart';
+import 'package:utopia_cli/src/version.dart';
+
+String _posix(String path) => path.replaceAll(r'\', '/');
 
 void main() {
   group('BrickLocator', () {
@@ -20,6 +23,61 @@ void main() {
             .having((e) => e.brickName, 'brickName', 'does_not_exist')
             .having((e) => e.searchedPaths, 'searchedPaths', isNotEmpty)),
       );
+    });
+
+    test('uses PUB_CACHE before inferred/default cache roots', () {
+      final locator = BrickLocator(
+        scriptPath: '/opt/utopia/bin/utopia.dart',
+        currentDirectory: '/workspace/utopia_cli',
+        environment: const {'PUB_CACHE': '/custom/pub-cache', 'HOME': '/home/me'},
+        directoryExists: (path) => _posix(path) == '/custom/pub-cache/hosted/pub.dev',
+        listDirectories: (path) => const [],
+      );
+
+      // Candidates are built with the host platform's separators - normalize
+      // so the same expectations hold on Windows CI.
+      final candidates = locator.candidatesFor('screen').map(_posix).toList();
+      expect(
+        candidates,
+        contains('/custom/pub-cache/hosted/pub.dev/utopia_cli-$packageVersion/bricks/screen'),
+      );
+      expect(
+        candidates.indexOf('/custom/pub-cache/hosted/pub.dev/utopia_cli-$packageVersion/bricks/screen'),
+        lessThan(candidates.indexOf('/home/me/.pub-cache/hosted/pub.dev/utopia_cli-$packageVersion/bricks/screen')),
+      );
+    });
+
+    test('models the Windows Pub Cache layout', () {
+      final locator = BrickLocator(
+        scriptPath: r'C:\Users\me\AppData\Local\Pub\Cache\global_packages\utopia_cli\bin\utopia.dart',
+        currentDirectory: r'C:\repo\utopia_cli',
+        environment: const {'LOCALAPPDATA': r'C:\Users\me\AppData\Local'},
+        directoryExists: (path) => _posix(path) == 'C:/Users/me/AppData/Local/Pub/Cache/hosted/pub.dev',
+        listDirectories: (path) => const [],
+      );
+
+      final normalized = locator.candidatesFor('screen').map(_posix).toList();
+      expect(
+        normalized,
+        contains('C:/Users/me/AppData/Local/Pub/Cache/hosted/pub.dev/utopia_cli-$packageVersion/bricks/screen'),
+      );
+    });
+
+    test('prefers the exact package version before other hosted versions', () {
+      final locator = BrickLocator(
+        scriptPath: '/home/me/.pub-cache/global_packages/utopia_cli/bin/utopia.dart',
+        currentDirectory: '/workspace/utopia_cli',
+        environment: const {},
+        directoryExists: (path) => _posix(path) == '/home/me/.pub-cache/hosted/pub.dev',
+        listDirectories: (path) => const [
+          '/home/me/.pub-cache/hosted/pub.dev/utopia_cli-0.1.0',
+          '/home/me/.pub-cache/hosted/pub.dev/utopia_cli-9.9.9',
+        ],
+      );
+
+      final candidates = locator.candidatesFor('utopia_flutter_app').map(_posix).toList();
+      expect(candidates[1], '/home/me/.pub-cache/hosted/pub.dev/utopia_cli-$packageVersion/bricks/utopia_flutter_app');
+      expect(candidates[2], '/home/me/.pub-cache/hosted/pub.dev/utopia_cli-9.9.9/bricks/utopia_flutter_app');
     });
   });
 }

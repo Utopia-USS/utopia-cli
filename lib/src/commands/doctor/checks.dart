@@ -1,13 +1,16 @@
 /// Registry of all checks `utopia doctor` knows about.
 ///
 /// Adding a check: append to [allChecks]. Tag taxonomy is locked (see
-/// `docs/describe_schema.md` and the plan); tag names appear in user
+/// `doc/describe_schema.md` and the plan); tag names appear in user
 /// `--check=...` flags and breaking them is a breaking change.
 library;
 
 import 'dart:io';
 import 'package:path/path.dart' as p;
 
+import '../../claude_code_settings.dart';
+import '../../path_utils.dart';
+import '../../strings.dart' as strings;
 import '../describe/model.dart' as desc;
 import 'check.dart';
 import 'model.dart';
@@ -153,7 +156,8 @@ List<Finding> _setupLintsNotExtended(desc.Describe describe, String projectRoot)
         tag: 'setup',
         severity: Severity.warning,
         message: 'No analysis_options.yaml found in package "${pkg.name}"',
-        file: p.join(pkg.path, 'analysis_options.yaml'),
+        package: pkg.name,
+        file: _projectRelative(pkg, 'analysis_options.yaml'),
         fix: 'Create analysis_options.yaml with `include: package:utopia_lints/lints.yaml`',
       ));
       continue;
@@ -165,7 +169,8 @@ List<Finding> _setupLintsNotExtended(desc.Describe describe, String projectRoot)
         tag: 'setup',
         severity: Severity.warning,
         message: 'analysis_options.yaml in "${pkg.name}" does not extend utopia_lints',
-        file: p.relative(analysisFile.path, from: projectRoot),
+        package: pkg.name,
+        file: posixRelative(analysisFile.path, from: projectRoot),
         fix: 'Add `include: package:utopia_lints/lints.yaml` at the top',
       ));
     }
@@ -176,18 +181,21 @@ List<Finding> _setupLintsNotExtended(desc.Describe describe, String projectRoot)
 List<Finding> _setupUtopiaHooksPluginNotEnabled(desc.Describe describe, String projectRoot) {
   final settingsFile = File(p.join(projectRoot, '.claude', 'settings.json'));
   if (!settingsFile.existsSync()) return const []; // handled by claude_settings_missing
-  final content = settingsFile.readAsStringSync();
-  // Simple substring check is fine - if someone disables this, they know
-  // what they're doing and can --skip this check.
-  if (content.contains('"utopia-hooks"')) return const [];
+  final settings = tryDecodeClaudeSettings(settingsFile.readAsStringSync());
+  if (settings != null && hasUtopiaClaudeSettings(settings)) return const [];
+  final legacySuffix = settings != null && usesLegacyClaudeSettings(settings)
+      ? ' It appears to use the legacy `marketplaces` / array `enabledPlugins` shape.'
+      : '';
   return [
-    const Finding(
+    Finding(
       ruleId: 'setup.utopia_hooks_plugin_not_enabled',
       tag: 'setup',
-      severity: Severity.info,
-      message: '.claude/settings.json does not enable the `utopia-hooks` plugin',
+      severity: Severity.warning,
+      message: '.claude/settings.json does not enable the `${strings.utopiaHooksPluginName}` plugin '
+          'with the current Claude Code settings schema.$legacySuffix',
       file: '.claude/settings.json',
-      fix: 'Add `"utopia-hooks"` to `enabledPlugins` and the Utopia-USS marketplace to `marketplaces`',
+      fix: 'Use `extraKnownMarketplaces.${strings.utopiaSkillsMarketplaceName}` and '
+          '`enabledPlugins.${strings.utopiaHooksPluginKey}: true`.',
     )
   ];
 }
@@ -240,7 +248,8 @@ List<Finding> _convStateHasNavigator(desc.Describe describe, String projectRoot)
             tag: 'conventions',
             severity: Severity.warning,
             message: 'State file calls `${m.group(0)}` - navigation belongs in screens, not state',
-            file: stateFile,
+            package: pkg.name,
+            file: _projectRelative(pkg, stateFile),
             line: i + 1,
             fix: 'Move navigation to the screen widget; pass a callback into state if needed',
           ));
@@ -271,7 +280,8 @@ List<Finding> _convStateHasBuildContext(desc.Describe describe, String projectRo
             tag: 'conventions',
             severity: Severity.warning,
             message: 'State file references BuildContext - state should be context-free',
-            file: stateFile,
+            package: pkg.name,
+            file: _projectRelative(pkg, stateFile),
             line: i + 1,
           ));
           break; // one is enough; don't spam
@@ -299,7 +309,8 @@ List<Finding> _convViewUsesHooks(desc.Describe describe, String projectRoot) {
               tag: 'conventions',
               severity: Severity.warning,
               message: 'View calls `${m.group(0)}` - views should be pure StatelessWidgets',
-              file: view.file,
+              package: pkg.name,
+              file: _projectRelative(pkg, view.file),
               line: i + 1,
               fix: 'Move the hook call to the screen; pass result down via state',
             ));
@@ -322,7 +333,8 @@ List<Finding> _convScreenExtendsStateful(desc.Describe describe, String projectR
           tag: 'conventions',
           severity: Severity.warning,
           message: 'Screen "${screen.name}" extends StatefulWidget - should extend HookWidget',
-          file: screen.file,
+          package: pkg.name,
+          file: _projectRelative(pkg, screen.file),
           fix: 'Convert to HookWidget and move state into a useXxxState() hook',
         ));
       }
@@ -342,16 +354,15 @@ CheckRunner _artifactsByFramework(List<desc.ForeignFramework> frameworks, String
       for (final artefact in pkg.foreignArtifacts) {
         if (!frameworks.contains(artefact.framework)) continue;
         // stateful is info; everything else warning.
-        final severity = artefact.framework == desc.ForeignFramework.stateful_widget
-            ? Severity.info
-            : Severity.warning;
+        final severity = artefact.framework == desc.ForeignFramework.stateful_widget ? Severity.info : Severity.warning;
         findings.add(Finding(
           ruleId: subTag == null ? 'imports.${artefact.framework.name}' : 'artifacts.$subTag',
           tag: subTag == null ? 'imports' : 'artifacts',
           subTag: subTag,
           severity: severity,
           message: '${artefact.framework.name} pattern detected: ${artefact.pattern}',
-          file: artefact.file,
+          package: pkg.name,
+          file: _projectRelative(pkg, artefact.file),
           line: artefact.line,
         ));
       }
@@ -375,8 +386,6 @@ List<Finding> _structureOrphanState(desc.Describe describe, String projectRoot) 
   for (final pkg in describe.packages) {
     final libDir = Directory(p.join(projectRoot, pkg.path == '.' ? '' : pkg.path, 'lib'));
     if (!libDir.existsSync()) continue;
-    final pkgRootForRel = p.join(projectRoot, pkg.path == '.' ? '' : pkg.path);
-
     // Index every dart file's content once, and build a global set of hook
     // CALL sites (hook name -> set of files where it's referenced, excluding
     // its own definition file).
@@ -409,8 +418,7 @@ List<Finding> _structureOrphanState(desc.Describe describe, String projectRoot) 
       // catches hooks returning a controller / non-State type
       // (e.g. `VideoPlayerController useVideoPlayerControllerState()`), which
       // the old `\w+State`-return regex silently skipped.
-      final defMatch =
-          RegExp(r'^([\w<>,.]+)\s+(use\w+State)\s*\(', multiLine: true).firstMatch(content);
+      final defMatch = RegExp(r'^([\w<>,.]+)\s+(use\w+State)\s*\(', multiLine: true).firstMatch(content);
       if (defMatch == null) continue; // not a hook-based state file
       final hook = defMatch.group(2)!;
       if (globalHooks.contains(hook)) continue; // registered global - not orphan
@@ -420,13 +428,14 @@ List<Finding> _structureOrphanState(desc.Describe describe, String projectRoot) 
       final referencedElsewhere = refs.any((path) => path != f.path);
       if (referencedElsewhere) continue;
 
-      final rel = p.relative(f.path, from: pkgRootForRel);
+      final rel = posixRelative(f.path, from: projectRoot);
       findings.add(Finding(
         ruleId: 'structure.orphan_state',
         tag: 'structure',
         severity: Severity.warning,
         message: 'State hook `$hook` in package "${pkg.name}" is defined but never called - '
             'not attached to any screen or registered as global',
+        package: pkg.name,
         file: rel,
         fix: 'Either use it from a screen/view, register as global in the providers map, or delete',
       ));
@@ -449,4 +458,8 @@ List<String> _allStateFilesForPackage(desc.Package pkg) {
     files.add(gs.file);
   }
   return files.toList();
+}
+
+String _projectRelative(desc.Package pkg, String file) {
+  return pkg.path == '.' ? toPosix(file) : posixJoin(pkg.path, file);
 }

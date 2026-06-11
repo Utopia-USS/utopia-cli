@@ -79,5 +79,5 @@ dart format --line-length=120 lib test
 
 - Utopia hooks reference: <https://pub.dev/packages/utopia_hooks>
 - Utopia arch reference: <https://pub.dev/packages/utopia_arch>
-- Skills marketplace: <https://github.com/Utopia-USS/utopia-flutter-skills>
+- Skills marketplace: <https://github.com/Utopia-USS/utopia-skills>
 - Generator CLI: <https://github.com/Utopia-USS/utopia-cli>

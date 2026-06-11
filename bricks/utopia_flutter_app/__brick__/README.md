@@ -9,6 +9,7 @@ Built on [utopia_arch](https://pub.dev/packages/utopia_arch) +
 
 ```bash
 flutter pub get
+dart run build_runner build --delete-conflicting-outputs
 flutter run
 ```
 

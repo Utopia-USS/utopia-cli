@@ -8,10 +8,11 @@ import 'package:meta/meta.dart';
 
 import 'model.dart';
 import 'parser.dart';
+import 'routes_view.dart';
 
 /// `utopia describe` - emit project structure as JSON.
 ///
-/// Output contract is documented at `docs/describe_schema.md`. Schema is
+/// Output contract is documented at `doc/describe_schema.md`. Schema is
 /// versioned via `schema_version`; downstream tooling (skills, MCP) pins
 /// to a version.
 class DescribeCommand extends Command<int> {
@@ -74,10 +75,8 @@ class DescribeCommand extends Command<int> {
   Future<int> run() async {
     final describe = _parser.parse(projectRoot);
 
-    final json = routesOnly ? _routesOnlyView(describe.toJson()) : describe.toJson();
-    final encoded = pretty
-        ? (const JsonEncoder.withIndent('  ')).convert(json)
-        : jsonEncode(json);
+    final json = routesOnly ? describeRoutesView(describe) : describe.toJson();
+    final encoded = pretty ? (const JsonEncoder.withIndent('  ')).convert(json) : jsonEncode(json);
 
     if (output == '-') {
       stdout.writeln(encoded);
@@ -91,33 +90,5 @@ class DescribeCommand extends Command<int> {
     // do not fail - the JSON's discovery_notes carry the detail.
     final hasError = describe.discoveryNotes.any((n) => n.level == DiscoveryLevel.error);
     return hasError ? ExitCode.usage.code : ExitCode.success.code;
-  }
-
-  /// Filter to just the routes section: `{schema_version, packages: [{name, routes_view}]}`.
-  Map<String, dynamic> _routesOnlyView(Map<String, dynamic> full) {
-    final packages = (full['packages'] as List).map((pkg) {
-      final pkgMap = pkg as Map<String, dynamic>;
-      final screens = pkgMap['screens'] as List;
-      final routes = screens
-          .map((s) => s as Map<String, dynamic>)
-          .where((s) => s['route'] != null)
-          .map((s) => {
-                'screen': s['name'],
-                'kind': s['kind'],
-                'file': s['file'],
-                'path': (s['route'] as Map)['path'],
-                'config_builder': (s['route'] as Map)['config_builder'],
-              })
-          .toList();
-      return {
-        'name': pkgMap['name'],
-        'routing': pkgMap['routing'],
-        'routes': routes,
-      };
-    }).toList();
-    return {
-      'schema_version': full['schema_version'],
-      'packages': packages,
-    };
   }
 }

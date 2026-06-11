@@ -1,8 +1,5 @@
 # `utopia describe` - JSON schema v1
 
-**Status: DRAFT** - needs sign-off before implementation. See plan
-at `~/.claude/plans/zazzy-bubbling-thacker.md`.
-
 This document defines the public output contract for `utopia describe`.
 Once shipped (especially via MCP exposure), the shape becomes pinned by
 skills, agent prompts, and downstream tooling. **Schema changes after
@@ -45,19 +42,20 @@ brick generates.
 5. **Discovery notes are first-class.** When parsing can't resolve
    something (cross-file route reference, computed path, auto_route
    gen file missing), the schema records *why*, not silently omits.
-6. **Heuristics are honest.** A `confidence: "high" | "medium" | "low"`
-   field on each discovery acknowledges that regex parsing is not
-   AST analysis. Agents can decide when to trust vs. verify.
+6. **Heuristics are explicit.** Route and foreign-artifact discoveries
+   include `confidence: "high" | "medium" | "low"`. The current v1 parser
+   emits `high` only for matched route constants and line-level foreign
+   artifact matches; `medium` and `low` are reserved for future, less direct
+   heuristics without changing the enum.
 
 ## Top-level structure
 
 ```json
 {
   "schema_version": 1,
-  "generated_at_git_ref": "abc1234",
   "workspace": {
     "type": "monorepo" | "single_package",
-    "tool": "melos" | "none",
+    "tool": "melos" | "dart_workspace" | "none",
     "root_path": "/abs/path/to/workspace/root",
     "packages_glob": ["packages/*"]
   },
@@ -73,6 +71,10 @@ brick generates.
   }
 }
 ```
+
+All relative paths in the output (`packages[].path`, `file`,
+`config_file`, etc.) use forward slashes on every platform, Windows
+included. Only `workspace.root_path` is an absolute host-native path.
 
 ## `Package` object
 
@@ -205,7 +207,7 @@ when route resolution failed (recorded in `discovery_notes`).
 }
 ```
 
-`registration_kind`: `noarg` | `with_deps` | `instance`.
+`registration_kind`: `noarg` | `with_deps` | `instance` | `unknown`.
 
 ## `ForeignArtifact` object
 
@@ -220,8 +222,35 @@ when route resolution failed (recorded in `discovery_notes`).
 ```
 
 `framework` enum: `bloc` | `cubit` | `riverpod` | `provider` |
-`mobx` | `flutter_hooks_direct` | `stateful_widget`. Reported as
-info only - doctor decides severity.
+`mobx` | `flutter_hooks_direct` | `stateful_widget` | `get_x`.
+Reported as info only - doctor decides severity.
+
+## Routes-only view
+
+`utopia describe --routes-only` and MCP `describe_routes` intentionally
+share the same shape:
+
+```json
+{
+  "schema_version": 1,
+  "packages": [
+    {
+      "name": "app",
+      "routing": { "strategy": "static_const_aggregator" },
+      "routes": [
+        {
+          "screen": "HomeScreen",
+          "kind": "routed_screen",
+          "file": "lib/screen/home/home_screen.dart",
+          "path": "/home",
+          "config_builder": null,
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## `DiscoveryNote` (top-level + per-package)
 
@@ -245,6 +274,8 @@ info only - doctor decides severity.
 - `multiple_route_pages_per_file` - one `.dart` declares 2+ `@RoutePage` classes
 - `screen_outside_canonical_dir` - screen file not under `lib/screen/` or `lib/ui/pages/`
 - `unusual_naming` - file ends in something other than `_screen.dart`, `_page.dart`, `_sheet.dart`, `_dialog.dart`
+- `pubspec_parse_error` - package pubspec could not be parsed
+- `workspace_detect_failed` - workspace metadata could not be parsed or resolved to packages
 - `project_root_not_found` - the given `-C <root>` path does not exist (error level; non-zero exit)
 - `no_package_found` - the root exists but has no `pubspec.yaml` and isn't a recognised workspace (warning level)
 

@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:test/test.dart';
 import 'package:utopia_cli/src/command_runner.dart';
+import 'package:utopia_cli/src/commands/create/create_subcommand.dart';
 import 'package:utopia_cli/src/version.dart';
 
 class _RecordingLogger extends Logger {
@@ -45,5 +49,71 @@ void main() {
       final add = runner.commands['add']!;
       expect(add.subcommands.keys, isNot(contains('state')));
     });
+
+    test('unexpected exceptions return software exit code', () async {
+      final runner = UtopiaCommandRunner(logger: Logger(level: Level.quiet))
+        ..checkForUpdates = false
+        ..addCommand(_ThrowingCommand());
+
+      final exitCode = await runner.run(['throw']);
+      expect(exitCode, ExitCode.software.code);
+    });
+
+    test('required shell failures throw controlled exceptions', () async {
+      final command = _ShellTestCommand(
+        shellRunner: (_, __, {required workingDirectory}) async => ProcessResult(123, 70, '', 'boom'),
+      );
+
+      expect(
+        () => command.runRequiredShell(Directory.current),
+        throwsA(isA<ShellCommandException>()
+            .having((e) => e.exitCode, 'exitCode', 70)
+            .having((e) => e.stderr, 'stderr', contains('boom'))),
+      );
+    });
   });
+}
+
+class _ThrowingCommand extends Command<int> {
+  @override
+  String get name => 'throw';
+
+  @override
+  String get description => 'Throws for runner testing.';
+
+  @override
+  Future<int> run() async => throw StateError('boom');
+}
+
+class _ShellTestCommand extends CreateSubCommand {
+  _ShellTestCommand({required super.shellRunner}) : super(logger: Logger(level: Level.quiet));
+
+  @override
+  String get name => 'shell_test';
+
+  @override
+  String get description => 'Shell test command.';
+
+  @override
+  String get defaultDescription => 'test';
+
+  @override
+  String get brickName => 'screen';
+
+  @override
+  Map<String, dynamic> buildVars({
+    required String projectName,
+    required String description,
+  }) =>
+      const {};
+
+  Future<void> runRequiredShell(Directory workingDir) {
+    return runShell(
+      'flutter',
+      ['pub', 'get'],
+      workingDir: workingDir,
+      successMessage: 'Installed dependencies',
+      failurePrefix: 'flutter pub get failed',
+    );
+  }
 }

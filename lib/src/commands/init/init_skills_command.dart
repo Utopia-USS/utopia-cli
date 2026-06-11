@@ -13,7 +13,7 @@ import '../../strings.dart' as strings;
 typedef MasonGeneratorFromBrick = Future<MasonGenerator> Function(Brick);
 
 /// `utopia init skills` — writes a `.claude/` directory into the current
-/// project that pre-registers the Utopia-USS/utopia-flutter-skills
+/// project that pre-registers the Utopia-USS/utopia-skills
 /// marketplace and enables the `utopia-hooks` plugin.
 ///
 /// Intended for projects created with `utopia create flutter_app --no-skills`,
@@ -81,7 +81,12 @@ class InitSkillsCommand extends Command<int> {
     final progress = _logger.progress('Registering Utopia skills marketplace');
     final files = await generator.generate(
       DirectoryGeneratorTarget(target),
-      vars: const {},
+      vars: const {
+        'claude_settings_schema_url': strings.claudeSettingsSchemaUrl,
+        'skills_marketplace_name': strings.utopiaSkillsMarketplaceName,
+        'skills_repo_slug': strings.utopiaSkillsMarketplaceSlug,
+        'utopia_hooks_plugin_key': strings.utopiaHooksPluginKey,
+      },
       fileConflictResolution: force ? FileConflictResolution.overwrite : FileConflictResolution.prompt,
       logger: _logger,
     );

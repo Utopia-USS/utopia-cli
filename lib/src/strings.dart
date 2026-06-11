@@ -8,13 +8,17 @@ import 'version.dart';
 
 const _utopiaUrl = 'https://utopiasoft.io';
 const _cliRepoUrl = 'https://github.com/Utopia-USS/utopia-cli';
-const _skillsRepoSlug = 'Utopia-USS/utopia-flutter-skills';
+const _skillsRepoSlug = 'Utopia-USS/utopia-skills';
 const _skillsRepoUrl = 'https://github.com/$_skillsRepoSlug';
 const _utopiaHooksUrl = 'https://pub.dev/packages/utopia_hooks';
 const _utopiaArchUrl = 'https://pub.dev/packages/utopia_arch';
 
 /// Marketplace identifier for the Utopia Flutter Skills marketplace.
 const utopiaSkillsMarketplaceSlug = _skillsRepoSlug;
+const utopiaSkillsMarketplaceName = 'utopia-skills';
+const utopiaHooksPluginName = 'utopia-hooks';
+const utopiaHooksPluginKey = '$utopiaHooksPluginName@$utopiaSkillsMarketplaceName';
+const claudeSettingsSchemaUrl = 'https://json.schemastore.org/claude-code-settings.json';
 
 /// Banner printed once per command run (above any output).
 String get banner => '🦄 Utopia CLI v$packageVersion';
@@ -26,10 +30,12 @@ const createFooter = 'Built with ❤︎ by Utopia · $_utopiaUrl';
 String createNextSteps({required String projectName, required bool skillsEnabled}) {
   final lines = <String>[
     '→ cd $projectName',
+    '→ dart run build_runner build --delete-conflicting-outputs',
     '→ flutter run',
     '',
     'Next:',
     '  • Try the sample counter feature at lib/screen/counter/',
+    '  • Update lib/app/app_localizations.dart docId/sheetId, or remove localization if unused',
   ];
   if (skillsEnabled) {
     lines.add('  • Open Claude Code and run /utopia-hooks to scaffold your next screen');

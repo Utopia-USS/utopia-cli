@@ -11,6 +11,7 @@ import 'commands/bump_command.dart';
 import 'commands/create/create_command.dart';
 import 'commands/describe/describe_command.dart';
 import 'commands/doctor/doctor_command.dart';
+import 'commands/hooks/hooks_command.dart';
 import 'commands/init/init_command.dart';
 import 'commands/mcp/mcp_command.dart';
 import 'commands/update_command.dart';
@@ -48,6 +49,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
     addCommand(InitCommand(logger: _logger));
     addCommand(DescribeCommand(logger: _logger));
     addCommand(DoctorCommand(logger: _logger));
+    addCommand(HooksCommand(logger: _logger));
     addCommand(McpCommand());
     addCommand(BumpCommand(logger: _logger, pubUpdater: _pubUpdater));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
@@ -78,6 +80,10 @@ class UtopiaCommandRunner extends CommandRunner<int> {
         ..info('')
         ..info(e.usage);
       return ExitCode.usage.code;
+    } on Object catch (e, stackTrace) {
+      _logger.err('Unexpected error: $e');
+      _logger.detail(stackTrace.toString());
+      return ExitCode.software.code;
     }
   }
 
@@ -90,7 +96,9 @@ class UtopiaCommandRunner extends CommandRunner<int> {
 
     final exitCode = await super.runCommand(topLevelResults);
 
-    if (checkForUpdates && topLevelResults.command?.name != UpdateCommand.commandName) {
+    if (checkForUpdates &&
+        (exitCode ?? ExitCode.success.code) == ExitCode.success.code &&
+        _allowsUpdateCheck(topLevelResults)) {
       await _checkForUpdates();
     }
 
@@ -100,7 +108,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
   Future<void> _checkForUpdates() async {
     try {
       final latest = await _pubUpdater.getLatestVersion(packageName).timeout(const Duration(seconds: 2));
-      if (latest != packageVersion) {
+      if (_isNewerVersion(latest, packageVersion)) {
         _logger
           ..info('')
           ..info(strings.updateAvailable(latest));
@@ -109,6 +117,40 @@ class UtopiaCommandRunner extends CommandRunner<int> {
       // Best-effort. Never break a command because the update check failed.
     }
   }
+}
+
+bool _allowsUpdateCheck(ArgResults topLevelResults) {
+  final command = topLevelResults.command;
+  if (command == null) return true;
+  if (command.name == UpdateCommand.commandName) return false;
+  if (const {'describe', 'doctor', 'mcp', 'hooks'}.contains(command.name)) {
+    return false;
+  }
+  if (command.name == 'add' && command.command?.name == 'screen' && command.command?['json'] == true) {
+    return false;
+  }
+  return true;
+}
+
+bool _isNewerVersion(String latest, String current) {
+  final latestParts = _versionCore(latest);
+  final currentParts = _versionCore(current);
+  for (var i = 0; i < 3; i++) {
+    final diff = latestParts[i].compareTo(currentParts[i]);
+    if (diff != 0) return diff > 0;
+  }
+  if (!current.contains('-') && latest.contains('-')) return false;
+  if (current.contains('-') && !latest.contains('-')) return true;
+  return latest != current;
+}
+
+List<int> _versionCore(String version) {
+  final core = version.split('-').first;
+  final parts = core.split('.').map((part) => int.tryParse(part) ?? 0).toList();
+  while (parts.length < 3) {
+    parts.add(0);
+  }
+  return parts.take(3).toList();
 }
 
 /// Flushes stdio then exits with [status]. Used by `bin/utopia.dart`.

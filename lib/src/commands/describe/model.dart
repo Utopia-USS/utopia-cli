@@ -2,7 +2,7 @@
 ///
 /// Schema is versioned via [Describe.schemaVersion]. Any change to field
 /// names, types, or semantics must bump the schema version. See
-/// `docs/describe_schema.md` for the contract.
+/// `doc/describe_schema.md` for the contract.
 library;
 
 /// Root output of `utopia describe`.

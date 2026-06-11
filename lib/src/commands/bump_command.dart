@@ -56,10 +56,10 @@ class BumpCommand extends Command<int> {
   String get projectRoot => (argResults['project-root'] as String?) ?? Directory.current.path;
   bool get dryRun => argResults['dry-run'] as bool? ?? false;
 
-  /// Pattern: ` utopia_xxx: ^1.2.3+4` or ` utopia_xxx: 1.2.3` etc.
+  /// Pattern: ` utopia_xxx: ^1.2.3-dev.4+5` or ` utopia_xxx: 1.2.3` etc.
   /// Captures indent, name, separator, and constraint.
   static final _depLineRegExp = RegExp(
-    r'^(\s+)(utopia_[a-z_0-9]+)(\s*:\s*)(\^?[\d.+]+)(\s*)$',
+    r'^(\s+)(utopia_[a-z_0-9]+)(\s*:\s*)(\^?\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)(\s*)$',
     multiLine: true,
   );
 

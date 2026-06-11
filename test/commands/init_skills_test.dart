@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:mason_logger/mason_logger.dart';
 import 'package:test/test.dart';
+import 'package:utopia_cli/src/claude_code_settings.dart';
 import 'package:utopia_cli/src/command_runner.dart';
+import 'package:utopia_cli/src/strings.dart' as strings;
 
 void main() {
   group('InitSkillsCommand', () {
@@ -31,8 +33,10 @@ void main() {
       expect(readme.existsSync(), isTrue);
 
       final body = settings.readAsStringSync();
-      expect(body, contains('Utopia-USS/utopia-flutter-skills'));
-      expect(body, contains('utopia-hooks'));
+      expect(body, contains(strings.claudeSettingsSchemaUrl));
+      expect(body, contains(strings.utopiaSkillsMarketplaceSlug));
+      expect(body, contains(strings.utopiaHooksPluginKey));
+      expect(hasUtopiaClaudeSettings(tryDecodeClaudeSettings(body)!), isTrue);
     });
 
     test('refuses to overwrite existing settings.json without --force', () async {
@@ -52,7 +56,7 @@ void main() {
 
       final exitCode = await runner.run(['init', 'skills', '-d', tempDir.path, '--force']);
       expect(exitCode, ExitCode.success.code);
-      expect(settings.readAsStringSync(), contains('utopia-flutter-skills'));
+      expect(settings.readAsStringSync(), contains(strings.utopiaSkillsMarketplaceSlug));
     });
   });
 }

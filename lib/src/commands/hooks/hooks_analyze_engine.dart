@@ -53,7 +53,7 @@ class HooksAnalyzeEngine {
       final abs = _absoluteFilePath(normalizedRoot, file);
       final result = _analyzeFile(projectRoot: normalizedRoot, filePath: abs);
       if (result == null) continue;
-      analyzedFiles.add(result.projectRelativePath);
+      analyzedFiles.add(toPosix(result.projectRelativePath));
       findings.addAll(result.findings);
     }
 

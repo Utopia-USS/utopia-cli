@@ -1,18 +1,29 @@
-name: utopia_arch_cli
-description: CLI tool for creating Flutter projects based on utopia_arch
-version: 0.1.0-dev.6
-homepage: https://github.com/Utopia-USS/utopia_arch_cli
+name: utopia_cli
+description: A CLI for scaffolding Flutter projects built on utopia_arch and utopia_hooks, with optional Claude Code skills and JSON-first agent workflows.
+version: 0.2.0-dev.6
+homepage: https://github.com/Utopia-USS/utopia-cli
+repository: https://github.com/Utopia-USS/utopia-cli
+issue_tracker: https://github.com/Utopia-USS/utopia-cli/issues
+topics: [cli, flutter, scaffolding, utopia, mcp]
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   args: ^2.4.0
+  dart_mcp: ^0.5.0
   mason: ^0.1.0-dev.50
+  mason_logger: ^0.2.0
+  meta: ^1.9.0
   path: ^1.8.3
+  pub_updater: ^0.4.0
+  stream_channel: ^2.1.0
+  yaml: ^3.1.0
 
 executables:
+  utopia:
   utopia_arch_cli:
 
 dev_dependencies:
+  process: ^5.0.0
   test: ^1.24.0

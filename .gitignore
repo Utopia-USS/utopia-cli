@@ -1,0 +1,11 @@
+# Dart / Pub
+.dart_tool/
+.packages
+build/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store

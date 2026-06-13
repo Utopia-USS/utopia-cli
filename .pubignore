@@ -1,0 +1,15 @@
+# Agent/review working notes.
+PLAN.md
+REVIEW.md
+BRANCH_REVIEW*.md
+NEXT_AGENT_TODOS*.md
+
+# Local development metadata.
+.claude/
+.codex/
+.agents/
+.idea/
+
+# Test and tooling state.
+.dart_tool/
+build/

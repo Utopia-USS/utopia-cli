@@ -1,0 +1,9 @@
+name: skills
+description: Writes a `.claude/` directory pre-registering the Utopia-USS/utopia-flutter-skills marketplace. Used by `utopia init skills` to opt an existing Flutter project into the Utopia Claude Code skills.
+version: 0.2.0
+repository: https://github.com/Utopia-USS/utopia-cli/tree/main/bricks/skills
+
+environment:
+  mason: ">=0.1.0-dev.50 <0.2.0"
+
+# No vars — the marketplace is fixed.

@@ -1,0 +1,19 @@
+name: utopia_screen
+description: Scaffolds a Utopia Screen/State/View triad under lib/screen/<name>/. Vendored from Utopia-USS/utopia-mason for atomic versioning with utopia_cli.
+version: 0.2.0
+repository: https://github.com/Utopia-USS/utopia-cli/tree/main/bricks/screen
+
+environment:
+  mason: ">=0.1.0-dev.50 <0.2.0"
+
+vars:
+  name:
+    type: string
+    description: Screen name in snake_case (e.g. "auth", "user_profile").
+    prompt: Screen name (snake_case)?
+    default: my_screen
+  route:
+    type: string
+    description: Route path served by this screen.
+    prompt: Route path?
+    default: "/"

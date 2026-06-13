@@ -1,0 +1,106 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: analyze + test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      # One explicit pub cache path for both OSes so the cache step below
+      # works without per-OS path juggling. (`runner` context is not
+      # allowed in job-level env, hence GITHUB_ENV.)
+      - name: Set pub cache path
+        shell: bash
+        run: echo "PUB_CACHE=$RUNNER_TEMP/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Cache pub
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - run: dart pub get
+
+      - name: Verify version.dart matches pubspec.yaml
+        shell: bash
+        run: |
+          dart run tool/sync_version.dart
+          if [ -n "$(git status --porcelain lib/src/version.dart)" ]; then
+            echo "::error::lib/src/version.dart is out of sync with pubspec.yaml."
+            echo "Run \`dart run tool/sync_version.dart\` and commit the result."
+            git diff lib/src/version.dart
+            exit 1
+          fi
+
+      # Skip bricks/ - files contain {{mustache}} placeholders that are
+      # not valid Dart and would error the formatter.
+      - run: dart format --output=none --set-exit-if-changed --line-length=120 bin lib test tool
+
+      - run: dart analyze --fatal-infos --fatal-warnings
+
+      - run: dart test --reporter=expanded
+
+      # Dogfood: run the real CLI doctor end to end against a throwaway
+      # utopia-stack project. Asserts both gate directions - warnings pass
+      # the default gate, --fail-on=warning turns them into a failure.
+      - name: Doctor smoke test
+        shell: bash
+        run: |
+          SAMPLE=.doctor-smoke
+          mkdir -p "$SAMPLE/lib"
+          cat > "$SAMPLE/pubspec.yaml" <<'EOF'
+          name: doctor_smoke_app
+          environment:
+            sdk: ^3.5.0
+          dependencies:
+            flutter:
+              sdk: flutter
+            utopia_hooks: ^0.5.0
+          EOF
+          echo 'void main() {}' > "$SAMPLE/lib/main.dart"
+
+          # No analysis_options.yaml -> setup.lints_not_extended warning.
+          # Default gate (--fail-on=error) must still pass.
+          dart run bin/utopia.dart doctor -C "$SAMPLE" --human -o "$SAMPLE/report.json"
+          jq -e '.schema_version == 1 and .summary.warning_count >= 1' "$SAMPLE/report.json"
+
+          # The same project must fail a stricter gate.
+          if dart run bin/utopia.dart doctor -C "$SAMPLE" --fail-on=warning -o -; then
+            echo "::error::doctor --fail-on=warning unexpectedly passed"
+            exit 1
+          fi
+
+  publish-dry-run:
+    name: pub publish --dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+
+      - run: dart pub publish --dry-run

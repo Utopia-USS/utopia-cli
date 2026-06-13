@@ -1,0 +1,47 @@
+name: utopia_flutter_app
+description: A Flutter application scaffold built on utopia_arch + utopia_hooks, with a sample Screen/State/View feature and optional Claude Code skills integration.
+version: 0.2.0
+repository: https://github.com/Utopia-USS/utopia-cli/tree/main/bricks/utopia_flutter_app
+
+environment:
+  mason: ">=0.1.0-dev.50 <0.2.0"
+
+vars:
+  project_name:
+    type: string
+    description: Dart package name for the project (snake_case).
+    prompt: What is the project name?
+    default: my_app
+  package_name:
+    type: string
+    description: Same as project_name (kept for template substitution).
+    default: my_app
+  dart_package_name:
+    type: string
+    description: Backward-compatible alias for package_name.
+    default: my_app
+  org_name:
+    type: string
+    description: Organization in reverse-domain notation (e.g. io.utopiasoft).
+    prompt: What is the organization name?
+    default: io.utopiasoft
+  description:
+    type: string
+    description: Short project description.
+    default: A Utopia Flutter project.
+  platforms:
+    type: string
+    description: Comma-separated Flutter platforms.
+    default: android,ios
+  application_id:
+    type: string
+    description: iOS bundle id / Android application id.
+    default: io.utopiasoft.my_app
+  skills_enabled:
+    type: boolean
+    description: Whether to generate the .claude/ skills marketplace config.
+    default: true
+  year:
+    type: string
+    description: Copyright year for generated files.
+    default: "2026"

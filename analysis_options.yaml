@@ -1,0 +1,15 @@
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  exclude:
+    - bricks/**
+    - test/.test_coverage.dart
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - prefer_final_locals
+    - unawaited_futures
+    - avoid_print

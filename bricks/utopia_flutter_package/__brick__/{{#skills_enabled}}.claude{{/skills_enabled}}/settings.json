@@ -1,0 +1,15 @@
+{
+  "$schema": "{{{claude_settings_schema_url}}}",
+  "permissions": {},
+  "extraKnownMarketplaces": {
+    "{{{skills_marketplace_name}}}": {
+      "source": {
+        "source": "github",
+        "repo": "{{{skills_repo_slug}}}"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "{{{utopia_hooks_plugin_key}}}": true
+  }
+}

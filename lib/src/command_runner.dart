@@ -30,7 +30,7 @@ class UtopiaCommandRunner extends CommandRunner<int> {
   })  : _logger = logger ?? Logger(),
         _pubUpdater = pubUpdater ?? PubUpdater(),
         checkForUpdates = !disableUpdateCheck,
-        super('utopia', '🦄 Utopia CLI — scaffold Flutter apps the Utopia way.') {
+        super('utopia', '👾 Utopia CLI — scaffold Flutter apps the Utopia way.') {
     argParser
       ..addFlag(
         'version',

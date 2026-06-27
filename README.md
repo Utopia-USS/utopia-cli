@@ -1,4 +1,4 @@
-# Utopia CLI 🦄
+# Utopia CLI 👾
 
 A command-line scaffolder for Flutter projects built on
 [`utopia_arch`](https://pub.dev/packages/utopia_arch) +

@@ -76,8 +76,7 @@ class BrickLocator {
 
     for (final pubCacheRoot in _pubCacheRoots(scriptPath)) {
       final hostedDir = p.join(pubCacheRoot, 'hosted', 'pub.dev');
-      out.add(
-          p.join(hostedDir, 'utopia_cli-$packageVersion', 'bricks', brickName));
+      out.add(p.join(hostedDir, 'utopia_cli-$packageVersion', 'bricks', brickName));
       if (_exists(hostedDir)) {
         final hostedPackages = _listDirs(hostedDir)
             .where((path) => p.basename(path).startsWith('utopia_cli-'))
@@ -90,13 +89,11 @@ class BrickLocator {
       }
 
       // 4. Pub-cache global_packages
-      out.add(p.join(
-          pubCacheRoot, 'global_packages', 'utopia_cli', 'bricks', brickName));
+      out.add(p.join(pubCacheRoot, 'global_packages', 'utopia_cli', 'bricks', brickName));
     }
 
     // 5. CWD fallback (running tests, ad-hoc).
-    out.add(p.join(
-        _currentDirectory ?? Directory.current.path, 'bricks', brickName));
+    out.add(p.join(_currentDirectory ?? Directory.current.path, 'bricks', brickName));
 
     return _dedupe(out);
   }
@@ -138,23 +135,16 @@ class BrickLocator {
     return null;
   }
 
-  bool _exists(String path) =>
-      _directoryExists?.call(path) ?? Directory(path).existsSync();
+  bool _exists(String path) => _directoryExists?.call(path) ?? Directory(path).existsSync();
 
-  bool _fileExistsAt(String path) =>
-      _fileExists?.call(path) ?? File(path).existsSync();
+  bool _fileExistsAt(String path) => _fileExists?.call(path) ?? File(path).existsSync();
 
-  String _readFileAt(String path) =>
-      _readFile?.call(path) ?? File(path).readAsStringSync();
+  String _readFileAt(String path) => _readFile?.call(path) ?? File(path).readAsStringSync();
 
   List<String> _listDirs(String path) {
     final injected = _listDirectories;
     if (injected != null) return injected(path);
-    return Directory(path)
-        .listSync()
-        .whereType<Directory>()
-        .map((entry) => entry.path)
-        .toList();
+    return Directory(path).listSync().whereType<Directory>().map((entry) => entry.path).toList();
   }
 
   List<String> _dedupe(List<String> input) {
@@ -170,8 +160,7 @@ class BrickLocator {
     for (final configPath in _packageConfigCandidates(startDirectory)) {
       if (!_fileExistsAt(configPath)) continue;
       try {
-        final json =
-            jsonDecode(_readFileAt(configPath)) as Map<String, dynamic>;
+        final json = jsonDecode(_readFileAt(configPath)) as Map<String, dynamic>;
         final packages = json['packages'];
         if (packages is! List) continue;
         Map<String, dynamic>? package;

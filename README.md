@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Utopia-USS/utopia-cli/main/docs/header.png" width="190" alt="Utopia CLI"/>
+
 # Utopia CLI 👾
 
 A command-line scaffolder for Flutter projects built on

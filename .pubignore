@@ -13,3 +13,9 @@ NEXT_AGENT_TODOS*.md
 # Test and tooling state.
 .dart_tool/
 build/
+
+# README assets. Kept in the repo so the README's absolute
+# raw.githubusercontent.com header URL resolves on GitHub/pub.dev, but
+# not shipped in the package (a top-level `docs/` also trips pub's
+# "rename docs -> doc" validation warning).
+docs/

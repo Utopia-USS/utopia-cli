@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-07-07
+
+- Docs: generalize the reference-project labels in `doc/describe_schema.md`
+  and related code comments to the anonymized `repo-A`..`repo-D` convention.
+
 ## 0.2.0 - 2026-07-03
 
 First release of `utopia_cli` on pub.dev. This package replaces

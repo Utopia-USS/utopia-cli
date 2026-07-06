@@ -1,8 +1,8 @@
 /// Project parser for `utopia describe`.
 ///
 /// Regex + path-heuristics first pass. Handles the patterns observed in
-/// the 4 reference projects (consumer-app, production-repo-B/classroom,
-/// production-repo-A, production-repo-C) - see `doc/describe_schema.md` for
+/// the 4 reference projects (repo-D, repo-B,
+/// repo-A, repo-C) - see `doc/describe_schema.md` for
 /// the contract.
 ///
 /// Cross-file resolution (e.g. `<Screen>.route` from `app_routing.dart`
@@ -609,8 +609,8 @@ class DescribeParser {
 
   /// Find files matching `*_routing.dart` under `lib/app/` recursively, plus
   /// `lib/app_routing.dart` at top level. Common locations:
-  /// - `lib/app/app_routing.dart` (repoC)
-  /// - `lib/app/arch/app_routing.dart` (consumer-app)
+  /// - `lib/app/app_routing.dart` (repo-C)
+  /// - `lib/app/arch/app_routing.dart` (repo-D)
   /// - `lib/app_routing.dart` (rare, top-level)
   List<File> _findRoutingFile(Directory libDir) {
     final out = <File>[];
@@ -658,7 +658,7 @@ class DescribeParser {
   /// Global states are:
   /// 1. Any `*_state.dart` under `lib/(app/)?state/` (conventional location), AND
   /// 2. Any other `*_state.dart` ANYWHERE in lib/ whose hook appears in the
-  ///    providers map - e.g. a screen state hoisted to global (production-repo-C's
+  ///    providers map - e.g. a screen state hoisted to global (repo-C's
   ///    `DailyPackTileState` lives in `screen/home/state/` but is registered in
   ///    `app.dart`'s providers map).
   List<GlobalState> _findGlobalStates(Directory libDir, String packageName, String packagePath) {
@@ -695,7 +695,7 @@ class DescribeParser {
       // A providers-map entry is a NO-ARG tear-off (`Map<Type, Object? Function()>`),
       // so a hook that takes arguments cannot be a global provider - it's a
       // parameterized state helper that merely lives in the state/ dir
-      // (e.g. repoC's useWeeklyDealDismissalState(String? id)). Detect no-arg
+      // (e.g. repo-C's useWeeklyDealDismissalState(String? id)). Detect no-arg
       // by an empty-parens declaration. Cross-package globals like ColorState
       // are no-arg even when not registered in THIS package's map, so they stay.
       final isNoArgHook = RegExp('\\b[\\w<>,.]+\\s+$hook\\s*\\(\\s*\\)').hasMatch(content);

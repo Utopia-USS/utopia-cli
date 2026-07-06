@@ -10,7 +10,7 @@ import 'package:utopia_cli/src/command_runner.dart';
 ///
 /// These tests build a tiny on-disk Flutter-shaped project per case
 /// and assert the schema's structural invariants. Real-world projects
-/// (consumer-app, repoB, repo-A, repoC) are covered manually - see
+/// (repo-D, repo-B, repo-A, repo-C) are covered manually - see
 /// `doc/describe_schema.md`.
 void main() {
   group('utopia describe', () {

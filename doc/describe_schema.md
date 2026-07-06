@@ -7,8 +7,9 @@ v1 publication are breaking and require a `schema_version` bump.**
 
 ## Why a schema doc
 
-The 4 real Utopia projects analyzed for this design (`consumer-app`,
-`production-repo-B/classroom`, `production-repo-A`, `production-repo-C`)
+The 4 real production projects analyzed for this design (anonymized here
+as `repo-A`..`repo-D`: a secure-communications workspace, a multi-package
+education monorepo, a realtime multiplayer game, and a solo consumer app)
 differ dramatically in:
 
 - Naming convention (`*_screen.dart` vs `*_page.dart` vs
@@ -83,7 +84,7 @@ included. Only `workspace.root_path` is an absolute host-native path.
   "name": "app",
   "path": "packages/app",
   "pubspec": {
-    "name": "repoCrepoC",
+    "name": "example_app",
     "version": "0.0.1+1",
     "dart_sdk": "^3.11.0",
     "flutter_sdk": ">=3.35.0",
@@ -140,7 +141,7 @@ included. Only `workspace.root_path` is an absolute host-native path.
 - `sheet` - presented imperatively via `*Sheet.show()` / `AdaptiveSheet`
 - `dialog` - presented imperatively via `*Dialog.show()` / `showGeneralDialog`
 - `non_routed_page` - full Screen/State/View triple but no route (mounted as inner widget, e.g. `FeedPage`)
-- `subscreen_fragment` - state+view exists, no top-level Dart file (e.g. repoC `paywall/` embedded in carousel)
+- `subscreen_fragment` - state+view exists, no top-level Dart file (e.g. repo-C `paywall/` embedded in carousel)
 - `bare_screen` - routed but no state or view files (e.g. `SplashScreen`, `*NoPermissions*`)
 - `auto_route_page` - annotated with `@RoutePage`, route resolved via code-gen
 
@@ -172,8 +173,8 @@ when route resolution failed (recorded in `discovery_notes`).
 
 ### `strategy` enum
 
-- `static_const_aggregator` - consumer-app, repoC: `static const route` on each screen + `Map<String, RouteConfig>` aggregator
-- `auto_route` - repoB: `@RoutePage` + generated `*_router.gr.dart`
+- `static_const_aggregator` - repo-D, repo-C: `static const route` on each screen + `Map<String, RouteConfig>` aggregator
+- `auto_route` - repo-B: `@RoutePage` + generated `*_router.gr.dart`
 - `go_router` - reserved for future detection
 - `imperative_only` - no routing config; screens pushed via `Navigator.push`
 - `unknown` - couldn't determine
@@ -194,7 +195,7 @@ when route resolution failed (recorded in `discovery_notes`).
 `registration_kind` enum:
 - `inline_app_dart` - in a `_buildProviders()` map inside `app.dart` / `<name>_app.dart` (the observed norm in 4/4 projects)
 - `providers_dart_file` - in a dedicated `_providers.dart` (documented but not seen in real apps yet)
-- `cross_package_import` - state defined in another workspace package (e.g. repoC `ColorState` from `core`)
+- `cross_package_import` - state defined in another workspace package (e.g. repo-C `ColorState` from `core`)
 
 ## `Service` object
 
@@ -306,7 +307,7 @@ Before implementation begins:
 
 ## Example outputs
 
-### Canonical case (repoC `app` package, HomeScreen excerpt)
+### Canonical case (repo-C `app` package, HomeScreen excerpt)
 
 ```json
 {
@@ -323,7 +324,7 @@ Before implementation begins:
 }
 ```
 
-### Edge: sheet without route (repoC AuthSheet)
+### Edge: sheet without route (repo-C AuthSheet)
 
 ```json
 {
@@ -337,7 +338,7 @@ Before implementation begins:
 }
 ```
 
-### Edge: auto_route with computed path (repoB classroom DemoLessonRoute)
+### Edge: auto_route with computed path (repo-B classroom DemoLessonRoute)
 
 ```json
 {
@@ -355,7 +356,7 @@ Before implementation begins:
 }
 ```
 
-### Edge: cross-package state (repoC ColorState)
+### Edge: cross-package state (repo-C ColorState)
 
 ```json
 {

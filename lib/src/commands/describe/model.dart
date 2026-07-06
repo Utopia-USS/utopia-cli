@@ -305,7 +305,7 @@ class ScreenState {
   final String hook;
 
   /// True if also registered as a global state (e.g. DailyPackTileState
-  /// in production-repo-C).
+  /// in repo-C).
   final bool isAlsoGlobal;
 
   Map<String, dynamic> toJson() => {
